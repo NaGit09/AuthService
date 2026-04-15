@@ -25,8 +25,11 @@ import com.furniro.AuthService.dto.res.LoginRes;
 import com.furniro.AuthService.exception.AuthException;
 import com.furniro.AuthService.util.enums.AuthErrorCode;
 import com.furniro.AuthService.util.UserUtils;
+import com.furniro.AuthService.service.kafka.KafkaProducer;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntSupplier;
@@ -43,6 +46,7 @@ public class AccountService {
     private final TokenRepository tokenRepository;
     private final RedisService redisService;
     private final UserRepository userRepository;
+    private final KafkaProducer kafkaProducer;
 
     public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
@@ -71,7 +75,11 @@ public class AccountService {
         account = accountRepository.save(account);
 
         // 3. Send message to MessageService with kafka topic : GenEmail
-
+        Map<String, Object> message = new HashMap<>();
+        message.put("firstName", registerReq.getFirstName());
+        message.put("lastName", registerReq.getLastName());
+        message.put("accountId", account.getAccountID());
+        kafkaProducer.send("email.auth.active", message);
         // 4. Response for client
         AType result = ApiType.builder()
                 .code(200)
