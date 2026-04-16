@@ -67,18 +67,24 @@ public class AccountService {
         }
 
         // 2. Create new account
-        Account account = new Account();
-        account.setUserName(UserUtils.generateUniqueUsername());
-        account.setEmail(registerReq.getEmail());
-        account.setPhone(registerReq.getNumberPhone());
-        account.setPasswordHash(passwordEncoder.encode(registerReq.getPassword()));
+        // 2.1 encode password
+        String encodedPassword = passwordEncoder.encode(registerReq.getPassword());
+        Account account = Account.builder()
+                .userName(UserUtils.generateUniqueUsername())
+                .email(registerReq.getEmail())
+                .phone(registerReq.getNumberPhone())
+                .passwordHash(encodedPassword)
+                .build();
+
         account = accountRepository.save(account);
 
         // 3. Send message to MessageService with kafka topic : GenEmail
         Map<String, Object> message = new HashMap<>();
         message.put("firstName", registerReq.getFirstName());
         message.put("lastName", registerReq.getLastName());
+        message.put("email", registerReq.getEmail());
         message.put("accountId", account.getAccountID());
+
         kafkaProducer.send("email.auth.active", message);
         // 4. Response for client
         AType result = ApiType.builder()
@@ -150,8 +156,12 @@ public class AccountService {
                 .Role(account.getRole())
                 .build();
         // 9. Warn user login
-        // Send message to MessageService with kafka topic :WarnLogin
+        Map<String, Object> message = new HashMap<>();
+        message.put("fullName", user.getFirstName() + " " + user.getLastName());
+        message.put("email", account.getEmail());
+        message.put("accountId", account.getAccountID());
 
+        kafkaProducer.send("auth.warn.login", message);
         // 10. Return result
         return ResponseEntity.ok(ApiType.<LoginRes>builder()
                 .code(200)
@@ -212,6 +222,12 @@ public class AccountService {
 
         // 5. Send OTP via MAIL public kafka topic : GenOTPForgot
         // mailService.sendMailOTP(account.getUserName(), email, otp);
+        Map<String, Object> message = new HashMap<>();
+        message.put("userName", account.getUserName());
+        message.put("email", email);
+        message.put("otp", otp);
+
+        kafkaProducer.send("auth.send.otp", message);
 
         // 5. Save OTP to Redis with TTL is 5 minutes
         redisService.addData(cachingKey, otp, 5, TimeUnit.MINUTES);
@@ -344,6 +360,7 @@ public class AccountService {
 
     public ResponseEntity<AType> resetPassword(@NotEmpty List<Integer> ids) {
         String hashPassword = passwordEncoder.encode("furniro2026");
+        // send mail notify user password is changed
         return executeBulkUpdate(ids, "Reset password", () -> accountRepository.resetPasswords(ids, hashPassword));
     }
 

@@ -1,3 +1,6 @@
 package com.furniro.AuthService.util;
 
-public enum AddressType { HOME, OFFICE }
+public enum AddressType {
+    HOME,
+    OFFICE
+}

@@ -1,4 +1,5 @@
 package com.furniro.AuthService.database.entity;
+
 import com.furniro.AuthService.util.LoginType;
 import com.furniro.AuthService.util.Role;
 import jakarta.persistence.*;
@@ -14,12 +15,13 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer accountID;
 
-    @Column(unique = true, nullable = false, length = 50 , name = "UserName")
+    @Column(unique = true, nullable = false, length = 50, name = "UserName")
     private String userName;
 
     @Column(unique = true, nullable = false, length = 150)
@@ -34,18 +36,23 @@ public class Account {
     private String providerID;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private LoginType loginType = LoginType.NORMAL;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private Role role = Role.CUSTOMER;
 
     @Column(name = "Active")
+    @Builder.Default
     private Boolean active = false;
 
     @Column(name = "Banned")
+    @Builder.Default
     private Boolean banned = false;
 
     @Column(name = "IsDeleted")
+    @Builder.Default
     private Boolean isDeleted = false;
 
     @CreationTimestamp

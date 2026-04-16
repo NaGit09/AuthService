@@ -25,27 +25,32 @@ public class AddressController {
     private final AddressService addressService;
 
     @GetMapping("/{id}")
-    public ResponseEntity<AType> getAddress(@PathVariable Integer id) {
+    public ResponseEntity<AType> getAddress
+    (@PathVariable Integer id) {
         return addressService.getAddress(id);
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<AType> getAddressByUserId(@PathVariable Integer userId) {
+    public ResponseEntity<AType> getAddressByUserId
+    (@PathVariable Integer userId) {
         return addressService.getAddressByUser(userId);
     }
 
     @PostMapping
-    public ResponseEntity<AType> createAddress(@RequestBody AddressReq address) {
+    public ResponseEntity<AType> createAddress(
+        @RequestBody AddressReq address) {
         return addressService.createAddress(address);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<AType> updateAddress(@RequestBody AddressReq address) {
+    public ResponseEntity<AType> updateAddress(
+        @RequestBody AddressReq address) {
         return addressService.updateAddress(address);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<AType> deleteAddress(@PathVariable Integer id) {
+    public ResponseEntity<AType> deleteAddress
+        (@PathVariable Integer id) {
         return addressService.deleteAddress(id);
     }
 }

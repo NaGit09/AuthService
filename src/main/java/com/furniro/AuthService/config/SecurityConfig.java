@@ -66,24 +66,30 @@ public class SecurityConfig {
     }
 
     @Bean
-    AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
     @Bean
     JwtDecoder jwtDecoder() {
+
         SecretKey key = new SecretKeySpec(
                 secretKey.getBytes(),
                 algorithm);
+
         return NimbusJwtDecoder.withSecretKey(key).build();
     }
 
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter() {
+
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
             String role = jwt.getClaimAsString("role");
+            
             if (role != null) {
                 authorities.add(new SimpleGrantedAuthority(role));
             }
@@ -96,11 +102,14 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8000"));
+        configuration.setAllowedOrigins(
+            List.of("http://localhost:3000", "http://localhost:8000"));
 
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(
+            List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        configuration.setAllowedHeaders(List.of("Authorization", "Accept", "Content-Type", "X-Requested-With"));
+        configuration.setAllowedHeaders
+        (List.of("Authorization", "Accept", "Content-Type", "X-Requested-With"));
 
         configuration.setAllowCredentials(true);
 
@@ -116,10 +125,13 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
+
                 .csrf(AbstractHttpConfigurer::disable)
+
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(WHITE_LIST_URLS).permitAll()
                         .anyRequest().authenticated())
+
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(
                                 (request, response, authException) -> {
@@ -131,6 +143,7 @@ public class SecurityConfig {
                                     response.sendError(HttpServletResponse.SC_FORBIDDEN,
                                             "Forbidden - You don't have permission");
                                 }))
+
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder())

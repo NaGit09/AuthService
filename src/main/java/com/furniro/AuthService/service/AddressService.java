@@ -13,7 +13,9 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.AddressReq;
 import com.furniro.AuthService.exception.AddressException;
+import com.furniro.AuthService.exception.UserException;
 import com.furniro.AuthService.util.enums.AddressErrorCode;
+import com.furniro.AuthService.util.enums.UserErrorCode;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +27,10 @@ public class AddressService {
     private final UserRepository userRepository;
 
     public ResponseEntity<AType> createAddress(@NonNull AddressReq createAddressReq) {
+        
         // 1. Check user exist
         User user = userRepository.findById(createAddressReq.getUserID())
-                .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         
         // 2. Create address
         Address address = Address.builder()

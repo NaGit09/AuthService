@@ -1,9 +1,5 @@
 package com.furniro.AuthService.service.kafka;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Component;
-
 import com.furniro.AuthService.database.entity.Account;
 import com.furniro.AuthService.database.entity.Address;
 import com.furniro.AuthService.database.entity.User;
@@ -13,9 +9,13 @@ import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.exception.AuthException;
 import com.furniro.AuthService.util.enums.AuthErrorCode;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import java.util.Map;
+
 
 @Slf4j
 @Component
@@ -26,25 +26,28 @@ public class KafkaConsumer {
     private final AccountRepository accountRepository;
     private final AddressRepository addressRepository;
 
-    @Transactional // Ensures atomicity
+    @Transactional
     @KafkaListener(topics = "email.auth.active", groupId = "auth-service-group")
-    public void listen(Map<String,Object> event) {
+    public void listen(Map<String, Object> event) {
 
-        // 1. Idempotency check
-        if (accountRepository.existsByAccountId(Integer.valueOf(event.get("accountId").toString())) > 0) {
-            log.warn("User for account {} already exists. Skipping.", event.get("accountId").toString());
+
+        // convert data from kafka message
+        String firstName = (String) event.get("firstName");
+        String lastName = (String) event.get("lastName");
+        Integer accountId = (Integer) event.get("accountId");
+        
+        if (accountRepository.existsByAccountId(accountId) > 0) {
+            log.warn("User for account {} already exists. Skipping.", accountId);
             return;
         }
 
-        // 2. Fetch Account
-        Account account = accountRepository.findById(Integer.valueOf(event.get("accountId").toString()))
+        Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 3. Build & Persist
         User newUser = User.builder()
                 .account(account)
-                .firstName((String) event.get("firstName"))
-                .lastName((String) event.get("lastName"))
+                .firstName(firstName)
+                .lastName(lastName)
                 .build();
 
         userRepository.save(newUser);
@@ -56,4 +59,5 @@ public class KafkaConsumer {
 
         log.info("Successfully processed profile for accountId: {}", event.get("accountId").toString());
     }
+
 }
