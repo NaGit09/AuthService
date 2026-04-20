@@ -36,7 +36,7 @@ public class KafkaConsumer {
         String lastName = (String) event.get("lastName");
         Integer accountId = (Integer) event.get("accountId");
         
-        if (accountRepository.existsByAccountId(accountId) > 0) {
+        if (accountRepository.existsByAccountID(accountId)) {
             log.warn("User for account {} already exists. Skipping.", accountId);
             return;
         }

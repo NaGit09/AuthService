@@ -52,6 +52,7 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/webjars/**",
             "/swagger-resources/**",
+            "/actuator/**"
     };
 
     @Value("${JWT_SECRET_KEY}")

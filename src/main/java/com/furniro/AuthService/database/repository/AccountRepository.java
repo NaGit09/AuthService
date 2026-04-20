@@ -45,7 +45,5 @@ public interface AccountRepository extends JpaRepository<Account, Integer> {
     @Query("UPDATE Account a SET a.banned = false WHERE a.accountID IN :ids")
     int unbanAccounts(@Param("ids") List<Integer> ids);
 
-    @Modifying
-    @Transactional
-    int existsByAccountId(Integer accountID);
+    boolean existsByAccountID(Integer accountID);
 }

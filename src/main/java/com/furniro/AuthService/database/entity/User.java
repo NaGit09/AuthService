@@ -41,7 +41,6 @@ public class User {
     @JoinColumn(name = "AccountID", referencedColumnName = "AccountID", nullable = false)
     private Account account;
 
-    // Quan hệ 1-N với Address
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Address> addresses;
 }

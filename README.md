@@ -1,108 +1,141 @@
-# Furniro - Authentication Service
+# 🔐 Furniro - Authentication Service
 
-Welcome to the **Authentication Service** of the Furniro project. This service handles user registration, authentication, token management (JWT), and security for the Furniro ecosystem.
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.x-brightgreen)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-17-orange)](https://www.oracle.com/java/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🚀 Features
+The **Authentication Service** is the backbone of the Furniro ecosystem, providing secure identity management, token-based authentication, and granular access control. Built with Spring Boot 3, it leverages modern security standards like JWT and OAuth2 Resource Server.
 
-- **User Authentication**: Secure login and signup with encrypted passwords.
-- **JWT Management**: Access and Refresh token generation and validation.
-- **Role-Based Access Control**: Secure endpoints based on user roles.
-- **Session Management**: Integrated with Redis for scalable session handling.
-- **Database Integration**: MySQL for persistent storage using Spring Data JPA.
-- **API Documentation**: Interactive Swagger/OpenAPI documentation.
-- **Environment Support**: Configuration managed via `.env` files.
+---
+
+## ✨ Key Highlights
+
+- 🔑 **Robust Authentication**: Secure registration and login flow with Bcrypt password encryption.
+- 🎟️ **JWT Ecosystem**: State-of-the-art token management (Access & Refresh tokens) with customizable expiration.
+- 🛡️ **Granular Security**: Role-Based Access Control (RBAC) ensuring only authorized users access sensitive endpoints.
+- ⚡ **High Performance**: Redis integration for session management and token blacklisting/caching.
+- 📧 **OTP Engine**: Built-in One-Time Password (OTP) verification for email validation and password recovery.
+- 📡 **Event-Driven**: Kafka integration for broadcasting user-related events (e.g., account registration) to other microservices.
+- 📖 **Self-Documenting**: Full OpenAPI/Swagger integration for seamless API exploration.
+
+---
 
 ## 🛠️ Technology Stack
 
-- **Lanuage**: Java 17
-- **Framework**: Spring Boot 4.0.x
-- **Security**: Spring Security (OAuth2 Resource Server, JWT)
-- **Database**: MySQL 8.x
-- **Caching/Session**: Redis
-- **ORM**: Hibernate / Spring Data JPA
-- **Documentation**: Springdoc OpenAPI (Swagger)
-- **Utilities**: Lombok, Dotenv-java
+| Logic | Data | Security | DevOps |
+| :--- | :--- | :--- | :--- |
+| **Java 17** | **MySQL 8.x** | **Spring Security** | **Docker** |
+| **Spring Boot 4.0.x** | **Redis** | **JWT (jjwt)** | **Maven** |
+| **Spring Data JPA** | **Kafka** | **OAuth2 Resource Server** | **Dotenv-java** |
+| **Lombok** | **Hibernate** | **Validation (Jakarta)** | **Springdoc OpenAPI** |
 
-## 📋 Prerequisites
+---
 
-Before running the application, ensure you have the following installed:
+## 🚀 Getting Started
 
-- **Java Development Kit (JDK) 17** or higher.
-- **Maven** (to build and run the project).
-- **MySQL Server** (running on port `3307` or as configured in `.env`).
-- **Redis Server** (running on port `6379`).
+### Prerequisites
 
-## ⚙️ Configuration
+- **JDK 17+**
+- **Maven 3.8+**
+- **MySQL 8.0+** (Default port: `3306` or `3307`)
+- **Redis 6.x+**
+- **Apache Kafka** (Optional for local development, required for event streaming)
 
-1. **Clone the repository**:
+### Quick Setup
+
+1. **Clone & Navigate**:
    ```bash
    git clone <repository-url>
    cd AuthService
    ```
 
-2. **Environment Variables**:
-   Create a `.env` file in the root directory (one already exists as a template) and configure your local settings:
-
+2. **Configure Environment**:
+   Create a `.env` file in the root:
    ```env
-   JWT_SECRET_KEY=your_secret_key_here
-   JWT_ACCESS_EXPIRATION=3600000
-   JWT_REFRESH_EXPIRATION=604800000
-   JWT_ALGORITHM=HmacSHA256
-
-   SERVER_PATH=/api/v1/furniro
-
+   # Database Configuration
    DATABASE_URL=jdbc:mysql://localhost:3307/furniro_db
    DATABASE_USERNAME=root
-   DATABASE_PASSWORD=your_password
+   DATABASE_PASSWORD=your_secure_password
+
+   # JWT Configuration
+   JWT_SECRET_KEY=your_super_secret_high_entropy_key_here
+   JWT_ACCESS_EXPIRATION=3600000        # 1 Hour
+   JWT_REFRESH_EXPIRATION=604800000    # 7 Days
+   JWT_ALGORITHM=HmacSHA256
+
+   # Server Path
+   SERVER_PATH=/api/v1/furniro
    ```
 
-3. **Database Setup**:
-   - Create a database named `furniro_db` in your MySQL instance.
-   - The application is configured with `ddl-auto: update`, so tables will be created automatically on startup.
+3. **Run the Service**:
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+   The service will be live at: `http://localhost:8080/api/v1/furniro`
 
-## 🏃 Running the Application
+---
 
-You can run the application using Maven:
+## 📂 Project Architecture
 
-```bash
-./mvnw spring-boot:run
+```text
+src/main/java/com/furniro/AuthService/
+├── config/       # Security, Redis, Kafka, and Swagger configs
+├── controller/   # REST API Entry points (Account, User, Address)
+├── dto/          # Data Transfer Objects (Requests/Responses)
+├── entity/       # JPA Entities (Database Schema)
+├── repository/   # Data Access Layer (Spring Data JPA)
+├── service/      # Core Business Logic & Orchestration
+└── util/         # Helper classes (JWT, OTP generators)
 ```
 
-The server will start at `http://localhost:8080/api/v1/furniro` (unless you change the port or context path).
+---
 
-## 📖 API Documentation
+## 🛣️ API Roadmap
 
-Once the application is running, you can access the interactive API documentation at:
-
-- **Swagger UI**: `http://localhost:8080/api/v1/furniro/swagger-ui.html`
-- **OpenAPI Specs**: `http://localhost:8080/api/v1/furniro/v3/api-docs`
-
-## 🔑 Key API Endpoints
-
-The service exposes the following authentication endpoints (all prefixed with `/api/v1/furniro`):
-
+### 🔓 Public Endpoints
 | Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/account/register` | `POST` | Register a new user account |
-| `/account/login` | `POST` | Authenticate user and receive tokens |
-| `/account/sendOTP` | `POST` | Send OTP for email verification/password reset |
-| `/account/confirmOTP` | `POST` | Verify the OTP sent to the user |
-| `/account/refresh` | `POST` | Refresh the access token using a refresh token |
-| `/account/logout` | `POST` | Invalidate the current session |
-| `/account/changePassword`| `POST` | Update user password |
+| :--- | :---: | :--- |
+| `/account/register` | `POST` | Create a new account |
+| `/account/login` | `POST` | Login & receive JWT tokens |
+| `/account/sendOTP` | `POST` | Request OTP for verification |
+| `/account/confirmOTP` | `POST` | Verify OTP for account activation |
 
-*Note: Most endpoints are white-listed for authentication purposes. More details can be found in the Swagger documentation.*
+### 🔒 Secured Endpoints (requires JWT)
+| Endpoint | Method | Description |
+| :--- | :---: | :--- |
+| `/account/logout` | `POST` | Invalidate current session |
+| `/account/refresh` | `POST` | Get new access token |
+| `/account/changePassword` | `POST` | Update account password |
+| `/user/{id}` | `GET` | Get profile information |
+| `/user` | `POST` | Create a new user profile |
+| `/user/{id}` | `PUT` | Update an existing user profile |
+| `/address/user/{userId}` | `GET` | Get addresses for a specific user |
+| `/address` | `POST` | Add a new shipping/billing address |
+| `/address/{id}` | `PUT` | Update an existing address |
 
-## 📂 Project Structure
+### 🛠️ Admin Operations
+| Endpoint | Method | Description |
+| :--- | :---: | :--- |
+| `/account/resetPassword` | `POST` | Force reset passwords (Bulk) |
+| `/account/ban` | `POST` | Suspend user accounts |
+| `/account/unban` | `POST` | Reactive suspended accounts |
 
-- `src/main/java/com/furniro/AuthService/`
-  - `controller/`: REST controllers for handling API requests.
-  - `service/`: Business logic and service layer.
-  - `repository/`: Data access layer (Spring Data JPA).
-  - `entity/`: Database entities/models.
-  - `config/`: Configuration classes (Security, Redis, etc.).
-  - `dto/`: Data Transfer Objects for API requests/responses.
+> [!TIP]
+> Use the **Swagger UI** for detailed schema definitions and live testing:
+> [http://localhost:8080/api/v1/furniro/swagger-ui.html](http://localhost:8080/api/v1/furniro/swagger-ui.html)
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git checkout origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
