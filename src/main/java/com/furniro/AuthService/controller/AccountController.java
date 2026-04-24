@@ -1,8 +1,8 @@
 package com.furniro.AuthService.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
@@ -14,23 +14,24 @@ import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.service.AccountService;
 
-import java.util.List;
-
 @Slf4j
 @RestController
 @RequestMapping("/account")
+@RequiredArgsConstructor
 public class AccountController {
 
     private final AccountService accountService;
-
-    public AccountController(AccountService accountService) {
-        this.accountService = accountService;
-    }
 
     @PostMapping("/register")
     public ResponseEntity<AType> register(
         @RequestBody RegisterReq registerReq) {
         return accountService.registerAccount(registerReq);
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<AType> activeAccount(
+        @RequestParam("id") Integer accountID) {
+        return accountService.activeAccount(accountID);
     }
 
     @PostMapping("/login")
@@ -40,7 +41,8 @@ public class AccountController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<AType> logout(Authentication authentication) {
+    public ResponseEntity<AType> logout
+        (Authentication authentication) {
         JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
         String token = jwtAuth.getToken().getTokenValue();
         return accountService.logoutAccount(token);
@@ -71,32 +73,4 @@ public class AccountController {
         return accountService.refreshToken(refreshToken);
     }
 
-    // ADMIN API
-    @PostMapping("/resetPassword")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<AType> resetPassword(
-        @RequestBody List<Integer> accountIDs) {
-        return accountService.resetPassword(accountIDs);
-    }
-
-    @PostMapping("/ban")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<AType> ban(
-        @RequestBody List<Integer> accountIDs) {
-        return accountService.banAccount(accountIDs);
-    }
-
-    @PostMapping("/unban")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<AType> unban(
-        @RequestBody List<Integer> accountIDs) {
-        return accountService.unbanAccount(accountIDs);
-    }
-
-    @PostMapping("/delete")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<AType> delete(
-        @RequestBody List<Integer> accountIDs) {
-        return accountService.deleteAccount(accountIDs);
-    }
 }

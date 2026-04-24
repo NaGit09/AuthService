@@ -1,4 +1,4 @@
-package com.furniro.AuthService.util;
+package com.furniro.AuthService.util.enums;
 
 public enum Gender {
     MALE,

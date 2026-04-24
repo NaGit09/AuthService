@@ -12,9 +12,9 @@ import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.UserReq;
-import com.furniro.AuthService.exception.UserException;
+import com.furniro.AuthService.exception.imp.UserException;
 import com.furniro.AuthService.service.kafka.KafkaProducer;
-import com.furniro.AuthService.util.enums.UserErrorCode;
+import com.furniro.AuthService.util.error.UserErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

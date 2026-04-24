@@ -6,8 +6,8 @@ import com.furniro.AuthService.database.entity.User;
 import com.furniro.AuthService.database.repository.AccountRepository;
 import com.furniro.AuthService.database.repository.AddressRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
-import com.furniro.AuthService.exception.AuthException;
-import com.furniro.AuthService.util.enums.AuthErrorCode;
+import com.furniro.AuthService.exception.imp.AuthException;
+import com.furniro.AuthService.util.error.AuthErrorCode;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -29,7 +29,6 @@ public class KafkaConsumer {
     @Transactional
     @KafkaListener(topics = "email.auth.active", groupId = "auth-service-group")
     public void listen(Map<String, Object> event) {
-
 
         // convert data from kafka message
         String firstName = (String) event.get("firstName");

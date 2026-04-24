@@ -1,12 +1,12 @@
 package com.furniro.AuthService.database.entity;
 
-import com.furniro.AuthService.util.Gender;
-
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
+
+import com.furniro.AuthService.util.enums.Gender;
 
 @Entity
 @Table(name = "User")

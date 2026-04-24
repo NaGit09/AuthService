@@ -22,17 +22,17 @@ import com.furniro.AuthService.dto.req.ConfirmOTPReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.dto.res.LoginRes;
-import com.furniro.AuthService.exception.AuthException;
-import com.furniro.AuthService.util.enums.AuthErrorCode;
+import com.furniro.AuthService.exception.imp.AuthException;
 import com.furniro.AuthService.util.UserUtils;
+import com.furniro.AuthService.util.error.AuthErrorCode;
 import com.furniro.AuthService.service.kafka.KafkaProducer;
+import com.furniro.AuthService.service.other.JWTService;
+import com.furniro.AuthService.service.other.RedisService;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import java.util.function.IntSupplier;
 
 @Service
 @Slf4j
@@ -48,7 +48,8 @@ public class AccountService {
     private final UserRepository userRepository;
     private final KafkaProducer kafkaProducer;
 
-    public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
+    public ResponseEntity<AType> checkEmailExisted
+        (@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -59,7 +60,8 @@ public class AccountService {
                 .build());
     }
 
-    public ResponseEntity<AType> registerAccount(@NonNull RegisterReq registerReq) {
+    public ResponseEntity<AType> registerAccount
+        (@NonNull RegisterReq registerReq) {
 
         // 1. Check email not existed
         if (accountRepository.existsByEmail(registerReq.getEmail())) {
@@ -85,7 +87,7 @@ public class AccountService {
         message.put("email", registerReq.getEmail());
         message.put("accountId", account.getAccountID());
 
-        kafkaProducer.send("email.auth.active", message);
+        kafkaProducer.send("auth.send.active", message);
         // 4. Response for client
         AType result = ApiType.builder()
                 .code(200)
@@ -96,7 +98,28 @@ public class AccountService {
         return ResponseEntity.ok().body(result);
     }
 
-    public ResponseEntity<AType> loginAccount(@NonNull LoginReq loginReq) {
+    public ResponseEntity<AType> activeAccount
+        (@NonNull Integer accountID) {
+        Account account = accountRepository.findById(accountID)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+        if (account.getActive()) {
+            return ResponseEntity.ok(ApiType.<Boolean>builder()
+                    .code(200)
+                    .message("Account is already activated")
+                    .data(false)
+                    .build());
+        }
+        account.setActive(true);
+        accountRepository.save(account);
+        return ResponseEntity.ok(ApiType.<Boolean>builder()
+                .code(200)
+                .message("Account activated successfully")
+                .data(true)
+                .build());
+    }
+
+    public ResponseEntity<AType> loginAccount
+        (@NonNull LoginReq loginReq) {
 
         // 1. Check account existed
         Account account = accountRepository.findByEmail(loginReq.getEmail())
@@ -155,14 +178,8 @@ public class AccountService {
                 .Email(account.getEmail())
                 .Role(account.getRole())
                 .build();
-        // 9. Warn user login
-        Map<String, Object> message = new HashMap<>();
-        message.put("fullName", user.getFirstName() + " " + user.getLastName());
-        message.put("email", account.getEmail());
-        message.put("accountId", account.getAccountID());
 
-        kafkaProducer.send("auth.warn.login", message);
-        // 10. Return result
+        // 9. Return result
         return ResponseEntity.ok(ApiType.<LoginRes>builder()
                 .code(200)
                 .message("Login successful")
@@ -170,7 +187,8 @@ public class AccountService {
                 .build());
     }
 
-    public ResponseEntity<AType> logoutAccount(@NonNull String token) {
+    public ResponseEntity<AType> logoutAccount
+        (@NonNull String token) {
 
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
@@ -197,7 +215,8 @@ public class AccountService {
         return ResponseEntity.ok().body(success);
     }
 
-    public ResponseEntity<AType> sendOTP(@NonNull String email) {
+    public ResponseEntity<AType> sendOTP
+        (@NonNull String email) {
 
         // 1. Check has OTP key in redis
         String cachingKey = "OTP:" + email;
@@ -242,7 +261,8 @@ public class AccountService {
         return ResponseEntity.ok().body(success);
     }
 
-    public ResponseEntity<AType> confirmOTP(@NonNull ConfirmOTPReq confirmOTPReq) {
+    public ResponseEntity<AType> confirmOTP
+        (@NonNull ConfirmOTPReq confirmOTPReq) {
 
         // 1. Get OTP from Redis
         String optKey = "OTP:" + confirmOTPReq.getEmail();
@@ -269,7 +289,8 @@ public class AccountService {
         return ResponseEntity.ok().body(success);
     }
 
-    public ResponseEntity<AType> changePassword(ChangePasswordReq req) {
+    public ResponseEntity<AType> changePassword
+        (ChangePasswordReq req) {
         // 1. Check OTP is existed Redis
         String cachingKey = "OTP:" + req.getEmail();
 
@@ -303,7 +324,8 @@ public class AccountService {
         return ResponseEntity.ok(success);
     }
 
-    public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
+    public ResponseEntity<AType> refreshToken
+        (@NotEmpty String token) {
 
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
@@ -329,50 +351,5 @@ public class AccountService {
 
     }
 
-    // ADMIN API
 
-    private ResponseEntity<AType> executeBulkUpdate(
-            List<Integer> accountIDs,
-            String successMessage,
-            IntSupplier updateLogic) {
-        // 1. Flash check user in list exist
-        long count = accountRepository.countByAccountIDIn(accountIDs);
-        if (count == 0) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
-        }
-
-        // 2. Execute update logic
-        int result = updateLogic.getAsInt();
-
-        if (result == 0) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
-        }
-
-        // 3. Return data with ApiType format
-        AType success = ApiType.builder()
-                .code(200)
-                .message(successMessage + " for " + result + "/" + accountIDs.size() + " account")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok(success);
-    }
-
-    public ResponseEntity<AType> resetPassword(@NotEmpty List<Integer> ids) {
-        String hashPassword = passwordEncoder.encode("furniro2026");
-        // send mail notify user password is changed
-        return executeBulkUpdate(ids, "Reset password", () -> accountRepository.resetPasswords(ids, hashPassword));
-    }
-
-    public ResponseEntity<AType> banAccount(@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(ids, "Ban account", () -> accountRepository.banAccounts(ids));
-    }
-
-    public ResponseEntity<AType> unbanAccount(@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(ids, "Unban account", () -> accountRepository.unbanAccounts(ids));
-    }
-
-    public ResponseEntity<AType> deleteAccount(@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(ids, "Delete account", () -> accountRepository.deleteAccounts(ids));
-    }
 }

@@ -1,6 +1,6 @@
 package com.furniro.AuthService.dto.req;
 
-import com.furniro.AuthService.util.AddressType;
+import com.furniro.AuthService.util.enums.AddressType;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

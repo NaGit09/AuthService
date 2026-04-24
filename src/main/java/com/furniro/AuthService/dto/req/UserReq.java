@@ -2,7 +2,7 @@ package com.furniro.AuthService.dto.req;
 
 import java.time.LocalDate;
 
-import com.furniro.AuthService.util.Gender;
+import com.furniro.AuthService.util.enums.Gender;
 
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;

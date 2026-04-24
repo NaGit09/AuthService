@@ -12,10 +12,10 @@ import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.AddressReq;
-import com.furniro.AuthService.exception.AddressException;
-import com.furniro.AuthService.exception.UserException;
-import com.furniro.AuthService.util.enums.AddressErrorCode;
-import com.furniro.AuthService.util.enums.UserErrorCode;
+import com.furniro.AuthService.exception.imp.AddressException;
+import com.furniro.AuthService.exception.imp.UserException;
+import com.furniro.AuthService.util.error.AddressErrorCode;
+import com.furniro.AuthService.util.error.UserErrorCode;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,8 @@ public class AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
 
-    public ResponseEntity<AType> createAddress(@NonNull AddressReq createAddressReq) {
+    public ResponseEntity<AType> createAddress
+    (@NonNull AddressReq createAddressReq) {
         
         // 1. Check user exist
         User user = userRepository.findById(createAddressReq.getUserID())
@@ -56,7 +57,8 @@ public class AddressService {
                 .build());
     }
 
-    public ResponseEntity<AType> updateAddress(@NonNull AddressReq updateAddressReq) {
+    public ResponseEntity<AType> updateAddress
+    (@NonNull AddressReq updateAddressReq) {
         // 1. Check user exist
         User user = userRepository.findById(updateAddressReq.getUserID())
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
@@ -87,7 +89,8 @@ public class AddressService {
                 .build());
     }
     
-    public ResponseEntity<AType> deleteAddress(@NonNull Integer addressID) {
+    public ResponseEntity<AType> deleteAddress
+    (@NonNull Integer addressID) {
         // 1. Check address exist
         Address address = addressRepository.findById(addressID)
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
@@ -102,7 +105,8 @@ public class AddressService {
                 .build());
     }
 
-    public ResponseEntity<AType> getAddress(@NonNull Integer addressID) {
+    public ResponseEntity<AType> getAddress
+    (@NonNull Integer addressID) {
         // 1. Check address exist
         Address address = addressRepository.findById(addressID)
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
@@ -115,7 +119,8 @@ public class AddressService {
                 .build());
     }
 
-    public ResponseEntity<AType> getAddressByUser(@NonNull Integer userID) {
+    public ResponseEntity<AType> getAddressByUser
+    (@NonNull Integer userID) {
         // 1. Check user exist
         User user = userRepository.findById(userID)
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));

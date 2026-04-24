@@ -1,7 +1,8 @@
 package com.furniro.AuthService.database.entity;
 
-import com.furniro.AuthService.util.LoginType;
-import com.furniro.AuthService.util.Role;
+import com.furniro.AuthService.util.enums.LoginType;
+import com.furniro.AuthService.util.enums.Role;
+
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

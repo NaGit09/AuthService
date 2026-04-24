@@ -1,4 +1,4 @@
-package com.furniro.AuthService.service;
+package com.furniro.AuthService.service.other;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -13,20 +13,24 @@ public class RedisService {
     private final StringRedisTemplate caching;
 
     @Async
-    public void addData(String key, String value, long timeout, TimeUnit unit) {
+    public void addData
+    (String key, String value, long timeout, TimeUnit unit) {
         caching.opsForValue().set(key, value, timeout, unit);
     }
 
     @Async
-    public void removeData(String key) {
+    public void removeData
+    (String key) {
         caching.delete(key);
     }
 
-    public boolean isCaching (String key) {
+    public boolean isCaching
+    (String key) {
         return caching.hasKey(key);
     }
 
-    public String getData(String key) {
+    public String getData
+    (String key) {
         return caching.opsForValue().get(key);
     }
 }

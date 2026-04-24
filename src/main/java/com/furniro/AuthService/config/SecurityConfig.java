@@ -96,6 +96,7 @@ public class SecurityConfig {
             }
             return authorities;
         });
+        
         return converter;
     }
 
