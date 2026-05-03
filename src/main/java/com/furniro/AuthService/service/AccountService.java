@@ -7,6 +7,9 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.validation.annotation.Validated;
 
 import com.furniro.AuthService.database.entity.Account;
@@ -46,10 +49,11 @@ public class AccountService {
     private final TokenRepository tokenRepository;
     private final RedisService redisService;
     private final UserRepository userRepository;
+    private final UserService userService;
+    private final AddressService addressService;
     private final KafkaProducer kafkaProducer;
 
-    public ResponseEntity<AType> checkEmailExisted
-        (@NonNull String email) {
+    public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -60,19 +64,44 @@ public class AccountService {
                 .build());
     }
 
-    public ResponseEntity<AType> registerAccount
-        (@NonNull RegisterReq registerReq) {
+    @Transactional
+    public ResponseEntity<AType> registerAccount(@NonNull RegisterReq registerReq) {
 
-        // 1. Check email not existed
+        String encodedPassword = passwordEncoder.encode(registerReq.getPassword());
+
+        Account account = saveAccountAndProfile(registerReq, encodedPassword);
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        Map<String, Object> message = new HashMap<>();
+                        message.put("firstName", registerReq.getFirstName());
+                        message.put("lastName", registerReq.getLastName());
+                        message.put("accountID", account.getAccountID());
+                        message.put("email", registerReq.getEmail());
+                        kafkaProducer.send("auth.send.active", message);
+                    }
+                });
+                
+        return ResponseEntity.ok(ApiType.builder()
+                .code(200)
+                .message("Registration successful. Please check your email to activate account.")
+                .data(true)
+                .build());
+    }
+
+    @Transactional
+    public Account saveAccountAndProfile(RegisterReq registerReq, String encodedPassword) {
+
         if (accountRepository.existsByEmail(registerReq.getEmail())) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        // 2. Create new account
-        // 2.1 encode password
-        String encodedPassword = passwordEncoder.encode(registerReq.getPassword());
+        String username = UserUtils.generateUniqueUsername();
+
         Account account = Account.builder()
-                .userName(UserUtils.generateUniqueUsername())
+                .userName(username)
                 .email(registerReq.getEmail())
                 .phone(registerReq.getNumberPhone())
                 .passwordHash(encodedPassword)
@@ -80,28 +109,20 @@ public class AccountService {
 
         account = accountRepository.save(account);
 
-        // 3. Send message to MessageService with kafka topic : GenEmail
-        Map<String, Object> message = new HashMap<>();
-        message.put("firstName", registerReq.getFirstName());
-        message.put("lastName", registerReq.getLastName());
-        message.put("email", registerReq.getEmail());
-        message.put("accountId", account.getAccountID());
+        User user = userService.createUser(account,
+                registerReq.getFirstName(),
+                registerReq.getLastName());
 
-        kafkaProducer.send("auth.send.active", message);
-        // 4. Response for client
-        AType result = ApiType.builder()
-                .code(200)
-                .message("Registration successful. Please check your email to activate account.")
-                .data(true)
-                .build();
+        addressService.createAddress(user);
 
-        return ResponseEntity.ok().body(result);
+        return account;
     }
 
-    public ResponseEntity<AType> activeAccount
-        (@NonNull Integer accountID) {
+    public ResponseEntity<AType> activeAccount(@NonNull Integer accountID) {
+
         Account account = accountRepository.findById(accountID)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+
         if (account.getActive()) {
             return ResponseEntity.ok(ApiType.<Boolean>builder()
                     .code(200)
@@ -109,8 +130,11 @@ public class AccountService {
                     .data(false)
                     .build());
         }
+
         account.setActive(true);
+
         accountRepository.save(account);
+
         return ResponseEntity.ok(ApiType.<Boolean>builder()
                 .code(200)
                 .message("Account activated successfully")
@@ -118,8 +142,7 @@ public class AccountService {
                 .build());
     }
 
-    public ResponseEntity<AType> loginAccount
-        (@NonNull LoginReq loginReq) {
+    public ResponseEntity<AType> loginAccount(@NonNull LoginReq loginReq) {
 
         // 1. Check account existed
         Account account = accountRepository.findByEmail(loginReq.getEmail())
@@ -154,9 +177,11 @@ public class AccountService {
                 jwtService.validateToken(existingToken.getToken(), "REFRESH")) {
 
             refreshToken = jwtService.generateToken(account, "REFRESH");
+
             existingToken.setAccount(account);
             existingToken.setToken(refreshToken);
             existingToken.setTokenType("REFRESH");
+
             tokenRepository.save(existingToken);
 
         } else {
@@ -187,8 +212,7 @@ public class AccountService {
                 .build());
     }
 
-    public ResponseEntity<AType> logoutAccount
-        (@NonNull String token) {
+    public ResponseEntity<AType> logoutAccount(@NonNull String token) {
 
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
@@ -215,8 +239,7 @@ public class AccountService {
         return ResponseEntity.ok().body(success);
     }
 
-    public ResponseEntity<AType> sendOTP
-        (@NonNull String email) {
+    public ResponseEntity<AType> sendOTP(@NonNull String email) {
 
         // 1. Check has OTP key in redis
         String cachingKey = "OTP:" + email;
@@ -261,8 +284,7 @@ public class AccountService {
         return ResponseEntity.ok().body(success);
     }
 
-    public ResponseEntity<AType> confirmOTP
-        (@NonNull ConfirmOTPReq confirmOTPReq) {
+    public ResponseEntity<AType> confirmOTP(@NonNull ConfirmOTPReq confirmOTPReq) {
 
         // 1. Get OTP from Redis
         String optKey = "OTP:" + confirmOTPReq.getEmail();
@@ -289,8 +311,7 @@ public class AccountService {
         return ResponseEntity.ok().body(success);
     }
 
-    public ResponseEntity<AType> changePassword
-        (ChangePasswordReq req) {
+    public ResponseEntity<AType> changePassword(ChangePasswordReq req) {
         // 1. Check OTP is existed Redis
         String cachingKey = "OTP:" + req.getEmail();
 
@@ -324,8 +345,7 @@ public class AccountService {
         return ResponseEntity.ok(success);
     }
 
-    public ResponseEntity<AType> refreshToken
-        (@NotEmpty String token) {
+    public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
 
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
@@ -348,8 +368,6 @@ public class AccountService {
                 .message("Token refreshed successfully")
                 .data(accessToken)
                 .build());
-
     }
-
 
 }

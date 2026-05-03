@@ -1,19 +1,16 @@
 package com.furniro.AuthService.service;
 
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.furniro.AuthService.database.entity.Account;
 import com.furniro.AuthService.database.entity.User;
-import com.furniro.AuthService.database.repository.AccountRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.UserReq;
 import com.furniro.AuthService.exception.imp.UserException;
-import com.furniro.AuthService.service.kafka.KafkaProducer;
 import com.furniro.AuthService.util.error.UserErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -23,42 +20,24 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final AccountRepository accountRepository;
-    private final KafkaProducer kafkaProducer;
 
-    public ResponseEntity<AType> createUser(UserReq req) {
-        // 1. check account existed
-        Account account = accountRepository.findById(req.getAccountID()).orElseThrow(
-                () -> new UserException(UserErrorCode.USER_NOT_FOUND));
-
+    public User createUser(Account account, String firstName, String lastName) {
+        // 1. check account , first name , last name exist
+        if (account == null || firstName == null || lastName == null) {
+                throw new UserException(UserErrorCode.USER_NOT_FOUND);
+        }
+        
         // 2. create user
         User newUser = User.builder()
-                .firstName(req.getFirstName())
-                .lastName(req.getLastName())
-                .avatarID(req.getAvatarID())
-                .avatar(req.getAvatar())
-                .gender(req.getGender())
-                .dateOfBirth(req.getDateOfBirth())
+                .firstName(firstName)
+                .lastName(lastName)
                 .account(account)
                 .build();
 
         // 3. save user
         userRepository.save(newUser);
 
-        // 4. sent message ImageActive to upload service via kafka
-        Map<String, Object> message = Map.of(
-                "imageID", req.getAvatarID(),
-                "userID", account.getAccountID()
-        );
-
-        kafkaProducer.send("image.active", message);
-
-        // 4. return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Create user success")
-                .data(newUser)
-                .build());
+        return newUser;
     }
 
     public ResponseEntity<AType> getUserById(Integer id) {

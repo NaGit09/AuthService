@@ -34,12 +34,6 @@ public class UserController {
         return userService.updateUserById(user);
     }
 
-    @PostMapping
-    public ResponseEntity<AType> createUser
-        (@RequestBody UserReq user) {
-        return userService.createUser(user);
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<AType> deleteUser
         (@PathVariable Integer id) {

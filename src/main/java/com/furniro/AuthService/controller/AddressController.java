@@ -36,12 +36,6 @@ public class AddressController {
         return addressService.getAddressByUser(userId);
     }
 
-    @PostMapping
-    public ResponseEntity<AType> createAddress(
-        @RequestBody AddressReq address) {
-        return addressService.createAddress(address);
-    }
-
     @PutMapping("/{id}")
     public ResponseEntity<AType> updateAddress(
         @RequestBody AddressReq address) {

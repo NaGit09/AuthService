@@ -13,9 +13,7 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.AddressReq;
 import com.furniro.AuthService.exception.imp.AddressException;
-import com.furniro.AuthService.exception.imp.UserException;
 import com.furniro.AuthService.util.error.AddressErrorCode;
-import com.furniro.AuthService.util.error.UserErrorCode;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -26,35 +24,15 @@ public class AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
 
-    public ResponseEntity<AType> createAddress
-    (@NonNull AddressReq createAddressReq) {
-        
-        // 1. Check user exist
-        User user = userRepository.findById(createAddressReq.getUserID())
-                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
-        
-        // 2. Create address
+    public Address createAddress(User user) {
+
         Address address = Address.builder()
-                .receiverName(createAddressReq.getReceiverName())
-                .receiverPhone(createAddressReq.getReceiverPhone())
-                .province(createAddressReq.getProvince())
-                .district(createAddressReq.getDistrict())
-                .ward(createAddressReq.getWard())
-                .street(createAddressReq.getStreet())
-                .isDefault(createAddressReq.getIsDefault())
-                .addressType(createAddressReq.getAddressType())
                 .user(user)
                 .build();
         
-        // 3. Save address
         addressRepository.save(address);
 
-        // 4. Return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Address created successfully")
-                .data(address)
-                .build());
+        return address;
     }
 
     public ResponseEntity<AType> updateAddress
