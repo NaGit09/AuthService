@@ -48,19 +48,19 @@ public class AccountController {
         return accountService.logoutAccount(token);
     }
 
-    @PostMapping("/sendOTP")
-    public ResponseEntity<AType> sendOPT
+    @PostMapping("/send-otp")
+    public ResponseEntity<AType> sendOTP
         (@RequestBody String email) {
         return accountService.sendOTP(email);
     }
 
-    @PostMapping("/confirmOTP")
+    @PostMapping("/confirm-otp")
     public ResponseEntity<AType> confirmOTP
         (@RequestBody ConfirmOTPReq confirmOTPReq) {
         return accountService.confirmOTP(confirmOTPReq);
     }
 
-    @PostMapping("/changePassword")
+    @PostMapping("/change-password")
     public ResponseEntity<AType> changePassword
         (@RequestBody ChangePasswordReq changePasswordReq) {
         return accountService.changePassword(changePasswordReq);

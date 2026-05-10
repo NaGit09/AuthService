@@ -55,13 +55,7 @@ public class AdminService {
         // 3. Return data with ApiType format
         String message = successMessage + " for " + result + "/" + accountIDs.size() + " account";
         log.info("Message: {}", message);
-        AType success = ApiType.builder()
-                .code(200)
-                .message(message)
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok(success);
+        return ResponseEntity.ok(ApiType.success(true, message));
     }
 
     public ResponseEntity<AType> resetPassword
@@ -118,12 +112,6 @@ public class AdminService {
         }
 
         // 3. Return data with ApiType format
-        AType success = ApiType.builder()
-                .code(200)
-                .message("Get all accounts successfully")
-                .data(getAccounts)
-                .build();
-
-        return ResponseEntity.ok(success);
+        return ResponseEntity.ok(ApiType.success(getAccounts, "Get all accounts successfully"));
     }
 }

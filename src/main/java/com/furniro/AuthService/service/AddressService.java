@@ -13,6 +13,7 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.AddressReq;
 import com.furniro.AuthService.exception.imp.AddressException;
+import com.furniro.AuthService.mapper.AddressMapper;
 import com.furniro.AuthService.util.error.AddressErrorCode;
 
 import lombok.NonNull;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
+    private final AddressMapper addressMapper;
 
     public Address createAddress(User user) {
 
@@ -46,25 +48,14 @@ public class AddressService {
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
 
         // 3. Update address
-        address.setReceiverName(updateAddressReq.getReceiverName());
-        address.setReceiverPhone(updateAddressReq.getReceiverPhone());
-        address.setProvince(updateAddressReq.getProvince());
-        address.setDistrict(updateAddressReq.getDistrict());
-        address.setWard(updateAddressReq.getWard());
-        address.setStreet(updateAddressReq.getStreet());
-        address.setIsDefault(updateAddressReq.getIsDefault());
-        address.setAddressType(updateAddressReq.getAddressType());
+        addressMapper.updateAddressFromReq(updateAddressReq, address);
         address.setUser(user);
 
         // 4. Save address
         addressRepository.save(address);
 
         // 5. Return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Address updated successfully")
-                .data(address)
-                .build());
+        return ResponseEntity.ok(ApiType.success(address, "Address updated successfully"));
     }
     
     public ResponseEntity<AType> deleteAddress
@@ -77,10 +68,7 @@ public class AddressService {
         addressRepository.delete(address);
         
         // 3. Return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Address deleted successfully")
-                .build());
+        return ResponseEntity.ok(ApiType.success(null, "Address deleted successfully"));
     }
 
     public ResponseEntity<AType> getAddress
@@ -90,11 +78,7 @@ public class AddressService {
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
         
         // 2. Return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Address found successfully")
-                .data(address)
-                .build());
+        return ResponseEntity.ok(ApiType.success(address, "Address found successfully"));
     }
 
     public ResponseEntity<AType> getAddressByUser
@@ -107,10 +91,6 @@ public class AddressService {
         List<Address> addresses = addressRepository.findByUser(user).stream().toList();
         
         // 3. Return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Address found successfully")
-                .data(addresses)
-                .build());
+        return ResponseEntity.ok(ApiType.success(addresses, "Address found successfully"));
     }
 }

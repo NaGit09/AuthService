@@ -36,12 +36,12 @@ public interface AccountRepository extends JpaRepository<Account, Integer> {
     int deleteAccounts(@Param("ids") List<Integer> ids);
 
     @Modifying
-    @Transactional // Bắt buộc phải có Transactional cho thao tác ghi
+    @Transactional
     @Query("UPDATE Account a SET a.banned = true WHERE a.accountID IN :ids")
     int banAccounts(@Param("ids") List<Integer> ids);
 
     @Modifying
-    @Transactional // Bắt buộc phải có Transactional cho thao tác ghi
+    @Transactional
     @Query("UPDATE Account a SET a.banned = false WHERE a.accountID IN :ids")
     int unbanAccounts(@Param("ids") List<Integer> ids);
 

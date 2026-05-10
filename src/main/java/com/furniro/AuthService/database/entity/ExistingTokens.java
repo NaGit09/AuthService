@@ -20,7 +20,7 @@ public class ExistingTokens {
     private String token;
 
     @Column(name = "TokenType")
-    private String tokenType; // "REFRESH"
+    private String tokenType;
 
     @Column(name = "ExpireDate")
     @Builder.Default

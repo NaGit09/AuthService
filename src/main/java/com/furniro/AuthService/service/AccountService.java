@@ -26,6 +26,7 @@ import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.dto.res.LoginRes;
 import com.furniro.AuthService.exception.imp.AuthException;
+import com.furniro.AuthService.mapper.AuthMapper;
 import com.furniro.AuthService.util.UserUtils;
 import com.furniro.AuthService.util.error.AuthErrorCode;
 import com.furniro.AuthService.service.kafka.KafkaProducer;
@@ -52,16 +53,13 @@ public class AccountService {
     private final UserService userService;
     private final AddressService addressService;
     private final KafkaProducer kafkaProducer;
+    private final AuthMapper authMapper;
 
     public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        return ResponseEntity.ok(ApiType.<Boolean>builder()
-                .code(200)
-                .message("Email is available")
-                .data(true)
-                .build());
+        return ResponseEntity.ok(ApiType.success(true));
     }
 
     @Transactional
@@ -83,12 +81,10 @@ public class AccountService {
                         kafkaProducer.send("auth.send.active", message);
                     }
                 });
-                
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Registration successful. Please check your email to activate account.")
-                .data(true)
-                .build());
+
+        LoginRes loginRes = generateLoginResponse(account);
+
+        return ResponseEntity.ok(ApiType.success(loginRes, "Registration successful."));
     }
 
     @Transactional
@@ -105,6 +101,7 @@ public class AccountService {
                 .email(registerReq.getEmail())
                 .phone(registerReq.getNumberPhone())
                 .passwordHash(encodedPassword)
+                .active(true)
                 .build();
 
         account = accountRepository.save(account);
@@ -124,22 +121,14 @@ public class AccountService {
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
 
         if (account.getActive()) {
-            return ResponseEntity.ok(ApiType.<Boolean>builder()
-                    .code(200)
-                    .message("Account is already activated")
-                    .data(false)
-                    .build());
+            return ResponseEntity.ok(ApiType.success(false, "Account is already activated"));
         }
 
         account.setActive(true);
 
         accountRepository.save(account);
 
-        return ResponseEntity.ok(ApiType.<Boolean>builder()
-                .code(200)
-                .message("Account activated successfully")
-                .data(true)
-                .build());
+        return ResponseEntity.ok(ApiType.success(true, "Account activated successfully"));
     }
 
     public ResponseEntity<AType> loginAccount(@NonNull LoginReq loginReq) {
@@ -162,17 +151,24 @@ public class AccountService {
             throw new AuthException(AuthErrorCode.INVALID_PASSWORD);
         }
 
-        // 4. Sign access token
+        // 4. Generate login response
+        LoginRes res = generateLoginResponse(account);
+
+        // 5. Return result
+        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+    }
+
+    private LoginRes generateLoginResponse(Account account) {
+        // 1. Sign access token
         String accessToken = jwtService.generateToken(account, "ACCESS");
 
-        // 5. Find old refresh token if it has in DB
+        // 2. Find old refresh token if it has in DB
         ExistingTokens existingToken = tokenRepository.findByAccount(account)
                 .orElse(new ExistingTokens());
 
         String refreshToken;
 
-        // 6. if refresh token not exist in DB , create new existing token and save to
-        // DB
+        // 3. if refresh token not exist in DB , create new existing token and save to DB
         if (existingToken.getToken() == null ||
                 jwtService.validateToken(existingToken.getToken(), "REFRESH")) {
 
@@ -188,28 +184,12 @@ public class AccountService {
             refreshToken = existingToken.getToken();
         }
 
-        // 7. Get user info in DB
+        // 4. Get user info in DB
         User user = userRepository.findByAccount(account)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 8. Return data for client
-        LoginRes res = LoginRes.builder()
-                .AccessToken(accessToken)
-                .RefreshToken(refreshToken)
-                .FirstName(user.getFirstName())
-                .LastName(user.getLastName())
-                .UserName(account.getUserName())
-                .AvatarUrl(user.getAvatar())
-                .Email(account.getEmail())
-                .Role(account.getRole())
-                .build();
-
-        // 9. Return result
-        return ResponseEntity.ok(ApiType.<LoginRes>builder()
-                .code(200)
-                .message("Login successful")
-                .data(res)
-                .build());
+        // 5. Return data for client
+        return authMapper.toLoginRes(account, user, accessToken, refreshToken);
     }
 
     public ResponseEntity<AType> logoutAccount(@NonNull String token) {
@@ -230,13 +210,7 @@ public class AccountService {
         tokenRepository.delete(existingToken);
 
         // 4. Return result
-        AType success = ApiType.builder()
-                .code(200)
-                .message("Logout successful")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok().body(success);
+        return ResponseEntity.ok(ApiType.success(true, "Logout successful"));
     }
 
     public ResponseEntity<AType> sendOTP(@NonNull String email) {
@@ -275,13 +249,7 @@ public class AccountService {
         redisService.addData(cachingKey, otp, 5, TimeUnit.MINUTES);
 
         // 6. Return result
-        AType success = ApiType.builder()
-                .code(200)
-                .message("OTP sent successfully")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok().body(success);
+        return ResponseEntity.ok(ApiType.success(true, "OTP sent successfully"));
     }
 
     public ResponseEntity<AType> confirmOTP(@NonNull ConfirmOTPReq confirmOTPReq) {
@@ -303,12 +271,7 @@ public class AccountService {
 
         // 4. return result for user
         redisService.removeData(optKey);
-        AType success = ApiType.builder()
-                .code(200)
-                .message("OTP confirmed successfully")
-                .data(true)
-                .build();
-        return ResponseEntity.ok().body(success);
+        return ResponseEntity.ok(ApiType.success(true, "OTP confirmed successfully"));
     }
 
     public ResponseEntity<AType> changePassword(ChangePasswordReq req) {
@@ -336,13 +299,7 @@ public class AccountService {
         account.setPasswordHash(passwordEncoder.encode(newPassword));
         accountRepository.save(account);
 
-        AType success = ApiType.builder()
-                .code(200)
-                .message("Password changed successfully")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok(success);
+        return ResponseEntity.ok(ApiType.success(true, "Password changed successfully"));
     }
 
     public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
@@ -350,7 +307,7 @@ public class AccountService {
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
 
-        if (isValid) {
+        if (!isValid) {
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
         }
 
@@ -363,11 +320,7 @@ public class AccountService {
         // 3. Sign access token and return result
         String accessToken = jwtService.generateToken(account, "ACCESS");
 
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Token refreshed successfully")
-                .data(accessToken)
-                .build());
+        return ResponseEntity.ok(ApiType.success(accessToken, "Token refreshed successfully"));
     }
 
 }

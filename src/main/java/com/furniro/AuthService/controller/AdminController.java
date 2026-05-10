@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.service.AdminService;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,39 +22,40 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class AdminController {
     private final AdminService adminService;
 
-    @PostMapping("/resetPassword")
+    @PostMapping("/reset-password")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AType> resetPassword(
             @RequestBody List<Integer> accountIDs) {
         return adminService.resetPassword(accountIDs);
     }
 
-    @PostMapping("/ban")
+    @PostMapping("/ban-account")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AType> ban(
             @RequestBody List<Integer> accountIDs) {
         return adminService.banAccount(accountIDs);
     }
 
-    @PostMapping("/unban")
+    @PostMapping("/unban-account")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AType> unban(
             @RequestBody List<Integer> accountIDs) {
         return adminService.unbanAccount(accountIDs);
     }
 
-    @PostMapping("/delete")
+    @PostMapping("/delete-account")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AType> delete(
             @RequestBody List<Integer> accountIDs) {
         return adminService.deleteAccount(accountIDs);
     }
 
-    @GetMapping("/all")
+    @GetMapping("/all-account")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<AType> getAllAccounts(
-            @RequestParam Integer page,
-            @RequestParam Integer size,
-            @RequestParam String sortBy) {
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "20") Integer size,
+            @RequestParam(defaultValue = "createdAt") String sortBy) {
         return adminService.getAllAccounts(page, size, sortBy);
     }
 

@@ -11,6 +11,7 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.UserReq;
 import com.furniro.AuthService.exception.imp.UserException;
+import com.furniro.AuthService.mapper.UserMapper;
 import com.furniro.AuthService.util.error.UserErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     public User createUser(Account account, String firstName, String lastName) {
         // 1. check account , first name , last name exist
@@ -45,27 +47,16 @@ public class UserService {
         User user = userRepository.findById(id).orElseThrow(
                 () -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Get user by " + id + " success")
-                .data(user)
-                .build());
+        return ResponseEntity.ok(ApiType.success(user, "Get user by " + id + " success"));
     }
 
     public ResponseEntity<AType> getAllUser() {
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Get all user success")
-                .data(userRepository.findAll())
-                .build());
+        return ResponseEntity.ok(ApiType.success(userRepository.findAll(), "Get all user success"));
     }
 
     public ResponseEntity<AType> deleteUserById(Integer id) {
         userRepository.deleteById(id);
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Delete user by " + id + " success")
-                .build());
+        return ResponseEntity.ok(ApiType.success(null, "Delete user by " + id + " success"));
     }
 
     public ResponseEntity<AType> updateUserById(UserReq req) {
@@ -75,20 +66,12 @@ public class UserService {
                 () -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         // 2. update user
-        user.setFirstName(req.getFirstName());
-        user.setLastName(req.getLastName());
-        user.setAvatar(req.getAvatar());
-        user.setGender(req.getGender());
-        user.setDateOfBirth(req.getDateOfBirth());
+        userMapper.updateUserFromReq(req, user);
 
         // 3. save user
         userRepository.save(user);
 
         // 4. return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Update user by " + req.getUserID() + " success")
-                .data(user)
-                .build());
+        return ResponseEntity.ok(ApiType.success(user, "Update user by " + req.getUserID() + " success"));
     }
 }
