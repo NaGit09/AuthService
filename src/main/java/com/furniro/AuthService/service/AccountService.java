@@ -7,6 +7,9 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.validation.annotation.Validated;
 
 import com.furniro.AuthService.database.entity.Account;
@@ -22,14 +25,18 @@ import com.furniro.AuthService.dto.req.ConfirmOTPReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.dto.res.LoginRes;
-import com.furniro.AuthService.exception.AuthException;
-import com.furniro.AuthService.util.enums.AuthErrorCode;
+import com.furniro.AuthService.exception.imp.AuthException;
+import com.furniro.AuthService.mapper.AuthMapper;
 import com.furniro.AuthService.util.UserUtils;
+import com.furniro.AuthService.util.error.AuthErrorCode;
+import com.furniro.AuthService.service.kafka.KafkaProducer;
+import com.furniro.AuthService.service.other.JWTService;
+import com.furniro.AuthService.service.other.RedisService;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import java.util.function.IntSupplier;
 
 @Service
 @Slf4j
@@ -43,43 +50,85 @@ public class AccountService {
     private final TokenRepository tokenRepository;
     private final RedisService redisService;
     private final UserRepository userRepository;
+    private final UserService userService;
+    private final AddressService addressService;
+    private final KafkaProducer kafkaProducer;
+    private final AuthMapper authMapper;
 
     public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        return ResponseEntity.ok(ApiType.<Boolean>builder()
-                .code(200)
-                .message("Email is available")
-                .data(true)
-                .build());
+        return ResponseEntity.ok(ApiType.success(true));
     }
 
+    @Transactional
     public ResponseEntity<AType> registerAccount(@NonNull RegisterReq registerReq) {
 
-        // 1. Check email not existed
+        String encodedPassword = passwordEncoder.encode(registerReq.getPassword());
+
+        Account account = saveAccountAndProfile(registerReq, encodedPassword);
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        Map<String, Object> message = new HashMap<>();
+                        message.put("firstName", registerReq.getFirstName());
+                        message.put("lastName", registerReq.getLastName());
+                        message.put("accountID", account.getAccountID());
+                        message.put("email", registerReq.getEmail());
+                        kafkaProducer.send("auth.send.active", message);
+                    }
+                });
+
+        LoginRes loginRes = generateLoginResponse(account);
+
+        return ResponseEntity.ok(ApiType.success(loginRes, "Registration successful."));
+    }
+
+    @Transactional
+    public Account saveAccountAndProfile(RegisterReq registerReq, String encodedPassword) {
+
         if (accountRepository.existsByEmail(registerReq.getEmail())) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        // 2. Create new account
-        Account account = new Account();
-        account.setUserName(UserUtils.generateUniqueUsername());
-        account.setEmail(registerReq.getEmail());
-        account.setPhone(registerReq.getNumberPhone());
-        account.setPasswordHash(passwordEncoder.encode(registerReq.getPassword()));
-        account = accountRepository.save(account);
+        String username = UserUtils.generateUniqueUsername();
 
-        // 3. Send message to MessageService with kafka topic : GenEmail
-
-        // 4. Response for client
-        AType result = ApiType.builder()
-                .code(200)
-                .message("Registration successful. Please check your email to activate account.")
-                .data(true)
+        Account account = Account.builder()
+                .userName(username)
+                .email(registerReq.getEmail())
+                .phone(registerReq.getNumberPhone())
+                .passwordHash(encodedPassword)
+                .active(true)
                 .build();
 
-        return ResponseEntity.ok().body(result);
+        account = accountRepository.save(account);
+
+        User user = userService.createUser(account,
+                registerReq.getFirstName(),
+                registerReq.getLastName());
+
+        addressService.createAddress(user);
+
+        return account;
+    }
+
+    public ResponseEntity<AType> activeAccount(@NonNull Integer accountID) {
+
+        Account account = accountRepository.findById(accountID)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+
+        if (account.getActive()) {
+            return ResponseEntity.ok(ApiType.success(false, "Account is already activated"));
+        }
+
+        account.setActive(true);
+
+        accountRepository.save(account);
+
+        return ResponseEntity.ok(ApiType.success(true, "Account activated successfully"));
     }
 
     public ResponseEntity<AType> loginAccount(@NonNull LoginReq loginReq) {
@@ -102,54 +151,45 @@ public class AccountService {
             throw new AuthException(AuthErrorCode.INVALID_PASSWORD);
         }
 
-        // 4. Sign access token
+        // 4. Generate login response
+        LoginRes res = generateLoginResponse(account);
+
+        // 5. Return result
+        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+    }
+
+    private LoginRes generateLoginResponse(Account account) {
+        // 1. Sign access token
         String accessToken = jwtService.generateToken(account, "ACCESS");
 
-        // 5. Find old refresh token if it has in DB
+        // 2. Find old refresh token if it has in DB
         ExistingTokens existingToken = tokenRepository.findByAccount(account)
                 .orElse(new ExistingTokens());
 
         String refreshToken;
 
-        // 6. if refresh token not exist in DB , create new existing token and save to
-        // DB
+        // 3. if refresh token not exist in DB , create new existing token and save to DB
         if (existingToken.getToken() == null ||
                 jwtService.validateToken(existingToken.getToken(), "REFRESH")) {
 
             refreshToken = jwtService.generateToken(account, "REFRESH");
+
             existingToken.setAccount(account);
             existingToken.setToken(refreshToken);
             existingToken.setTokenType("REFRESH");
+
             tokenRepository.save(existingToken);
 
         } else {
             refreshToken = existingToken.getToken();
         }
 
-        // 7. Get user info in DB
+        // 4. Get user info in DB
         User user = userRepository.findByAccount(account)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 8. Return data for client
-        LoginRes res = LoginRes.builder()
-                .AccessToken(accessToken)
-                .RefreshToken(refreshToken)
-                .FirstName(user.getFirstName())
-                .LastName(user.getLastName())
-                .UserName(account.getUserName())
-                .AvatarUrl(user.getAvatar())
-                .Email(account.getEmail())
-                .Role(account.getRole())
-                .build();
-        // 9. Warn user login
-        // Send message to MessageService with kafka topic :WarnLogin
-
-        // 10. Return result
-        return ResponseEntity.ok(ApiType.<LoginRes>builder()
-                .code(200)
-                .message("Login successful")
-                .data(res)
-                .build());
+        // 5. Return data for client
+        return authMapper.toLoginRes(account, user, accessToken, refreshToken);
     }
 
     public ResponseEntity<AType> logoutAccount(@NonNull String token) {
@@ -170,13 +210,7 @@ public class AccountService {
         tokenRepository.delete(existingToken);
 
         // 4. Return result
-        AType success = ApiType.builder()
-                .code(200)
-                .message("Logout successful")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok().body(success);
+        return ResponseEntity.ok(ApiType.success(true, "Logout successful"));
     }
 
     public ResponseEntity<AType> sendOTP(@NonNull String email) {
@@ -204,18 +238,18 @@ public class AccountService {
 
         // 5. Send OTP via MAIL public kafka topic : GenOTPForgot
         // mailService.sendMailOTP(account.getUserName(), email, otp);
+        Map<String, Object> message = new HashMap<>();
+        message.put("userName", account.getUserName());
+        message.put("email", email);
+        message.put("otp", otp);
+
+        kafkaProducer.send("auth.send.otp", message);
 
         // 5. Save OTP to Redis with TTL is 5 minutes
         redisService.addData(cachingKey, otp, 5, TimeUnit.MINUTES);
 
         // 6. Return result
-        AType success = ApiType.builder()
-                .code(200)
-                .message("OTP sent successfully")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok().body(success);
+        return ResponseEntity.ok(ApiType.success(true, "OTP sent successfully"));
     }
 
     public ResponseEntity<AType> confirmOTP(@NonNull ConfirmOTPReq confirmOTPReq) {
@@ -237,12 +271,7 @@ public class AccountService {
 
         // 4. return result for user
         redisService.removeData(optKey);
-        AType success = ApiType.builder()
-                .code(200)
-                .message("OTP confirmed successfully")
-                .data(true)
-                .build();
-        return ResponseEntity.ok().body(success);
+        return ResponseEntity.ok(ApiType.success(true, "OTP confirmed successfully"));
     }
 
     public ResponseEntity<AType> changePassword(ChangePasswordReq req) {
@@ -270,13 +299,7 @@ public class AccountService {
         account.setPasswordHash(passwordEncoder.encode(newPassword));
         accountRepository.save(account);
 
-        AType success = ApiType.builder()
-                .code(200)
-                .message("Password changed successfully")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok(success);
+        return ResponseEntity.ok(ApiType.success(true, "Password changed successfully"));
     }
 
     public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
@@ -284,7 +307,7 @@ public class AccountService {
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
 
-        if (isValid) {
+        if (!isValid) {
             throw new AuthException(AuthErrorCode.INVALID_TOKEN);
         }
 
@@ -297,57 +320,7 @@ public class AccountService {
         // 3. Sign access token and return result
         String accessToken = jwtService.generateToken(account, "ACCESS");
 
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Token refreshed successfully")
-                .data(accessToken)
-                .build());
-
+        return ResponseEntity.ok(ApiType.success(accessToken, "Token refreshed successfully"));
     }
 
-    // ADMIN API
-
-    private ResponseEntity<AType> executeBulkUpdate(
-            List<Integer> accountIDs,
-            String successMessage,
-            IntSupplier updateLogic) {
-        // 1. Flash check user in list exist
-        long count = accountRepository.countByAccountIDIn(accountIDs);
-        if (count == 0) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
-        }
-
-        // 2. Execute update logic
-        int result = updateLogic.getAsInt();
-
-        if (result == 0) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
-        }
-
-        // 3. Return data with ApiType format
-        AType success = ApiType.builder()
-                .code(200)
-                .message(successMessage + " for " + result + "/" + accountIDs.size() + " account")
-                .data(true)
-                .build();
-
-        return ResponseEntity.ok(success);
-    }
-
-    public ResponseEntity<AType> resetPassword(@NotEmpty List<Integer> ids) {
-        String hashPassword = passwordEncoder.encode("furniro2026");
-        return executeBulkUpdate(ids, "Reset password", () -> accountRepository.resetPasswords(ids, hashPassword));
-    }
-
-    public ResponseEntity<AType> banAccount(@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(ids, "Ban account", () -> accountRepository.banAccounts(ids));
-    }
-
-    public ResponseEntity<AType> unbanAccount(@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(ids, "Unban account", () -> accountRepository.unbanAccounts(ids));
-    }
-
-    public ResponseEntity<AType> deleteAccount(@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(ids, "Delete account", () -> accountRepository.deleteAccounts(ids));
-    }
 }

@@ -6,6 +6,7 @@ import lombok.Data;
 
 @Data
 public class LoginReq {
+    
     @NotBlank(message ="Email is not empty")
     @Email(message = "Invalid email")
     private String email;

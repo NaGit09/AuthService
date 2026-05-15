@@ -1,4 +1,4 @@
-package com.furniro.AuthService.service;
+package com.furniro.AuthService.service.other;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -15,6 +15,7 @@ import java.util.function.Function;
 
 @Service
 public class JWTService {
+
     @Value("${JWT_SECRET_KEY}")
     private String secretKey;
 
@@ -29,16 +30,19 @@ public class JWTService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String extractUsername(String token) {
+    public String extractUsername
+    (String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    public <T> T extractClaim
+    (String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    public String generateToken(Account account, String tokenType) {
+    public String generateToken
+    (Account account, String tokenType) {
 
         long expirationTime = tokenType.equalsIgnoreCase("ACCESS")
                 ? accessExpiration
@@ -54,7 +58,8 @@ public class JWTService {
                 .compact();
     }
 
-    public boolean validateToken(String token, String tokenType) {
+    public boolean validateToken
+    (String token, String tokenType) {
         try {
             Claims claims = extractAllClaims(token);
 
@@ -67,7 +72,8 @@ public class JWTService {
         }
     }
 
-    private Claims extractAllClaims(String token) {
+    private Claims extractAllClaims
+    (String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()

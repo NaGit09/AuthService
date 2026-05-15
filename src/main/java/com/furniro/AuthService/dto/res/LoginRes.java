@@ -1,6 +1,7 @@
 package com.furniro.AuthService.dto.res;
 
-import com.furniro.AuthService.util.Role;
+import com.furniro.AuthService.util.enums.Role;
+
 import lombok.Builder;
 import lombok.Data;
 

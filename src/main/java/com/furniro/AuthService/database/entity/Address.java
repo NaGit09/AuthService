@@ -1,6 +1,6 @@
 package com.furniro.AuthService.database.entity;
 
-import com.furniro.AuthService.util.AddressType;
+import com.furniro.AuthService.util.enums.AddressType;
 
 import jakarta.persistence.*;
 import lombok.*;

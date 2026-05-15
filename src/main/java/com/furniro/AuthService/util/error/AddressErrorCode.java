@@ -1,4 +1,4 @@
-package com.furniro.AuthService.util.enums;
+package com.furniro.AuthService.util.error;
 
 import lombok.Getter;
 
