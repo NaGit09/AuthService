@@ -63,7 +63,6 @@ public class Account {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // Quan hệ 1-1 với User
     @OneToOne(mappedBy = "account", cascade = CascadeType.ALL)
     private User user;
 }

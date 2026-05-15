@@ -29,8 +29,8 @@ import com.furniro.AuthService.exception.imp.AuthException;
 import com.furniro.AuthService.mapper.AuthMapper;
 import com.furniro.AuthService.util.UserUtils;
 import com.furniro.AuthService.util.error.AuthErrorCode;
-import com.furniro.AuthService.service.kafka.KafkaProducer;
 import com.furniro.AuthService.service.other.JWTService;
+import com.furniro.AuthService.service.other.KafkaProducer;
 import com.furniro.AuthService.service.other.RedisService;
 
 import java.util.HashMap;

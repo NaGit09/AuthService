@@ -1,4 +1,3 @@
-
 spring:
   application:
     name: auth-service
@@ -7,8 +6,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          secret-key: ${JWT_SECRET_KEY}
-
+          public-key-location: file:${JWT_PUBLIC}
 
   devtools:
     add-properties: false
@@ -27,20 +25,11 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   kafka:
-    
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
-
-    consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID}
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
-      properties:
-        "[spring.json.trusted.packages]": "*"
 
   jpa:
     hibernate:
@@ -48,6 +37,18 @@ spring:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
       ddl-auto: update
     show-sql: true
+
+auth:
+  jwt:
+    issuer: ${JWT_ISS}
+
+    private-key-location: file:${JWT_PRIVATE}
+
+    access-expiration: ${JWT_ACCESS_EXPIRATION}
+
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+
+    algorithm: ${JWT_ALGORITHM}
 
 server:
   port: ${SERVER_PORT:8081}
@@ -59,16 +60,15 @@ logging:
     "[org.springframework.web]": debug
     "[org.springframework.security]": DEBUG
 
-
 management:
   endpoints:
     web:
       exposure:
-        include: "*" 
+        include: "*"
   endpoint:
     health:
-      show-details: always 
-      
+      show-details: always
+
 springdoc:
   api-docs:
     path: /v3/api-docs

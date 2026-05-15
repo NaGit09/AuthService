@@ -2,6 +2,7 @@ package com.furniro.AuthService.config;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,9 +22,9 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+import com.furniro.AuthService.util.KeyLoader;
 
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -51,12 +52,9 @@ public class SecurityConfig {
             "/actuator/**"
     };
 
-    @Value("${JWT_SECRET_KEY}")
-    private String secretKey;
-
-    @Value("${JWT_ALGORITHM}")
-    private String algorithm;
-
+    @Value("${spring.security.oauth2.resourceserver.jwt.public-key-location}")
+    private String publicKeyLocation;
+    
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -70,12 +68,12 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder() {
-
-        SecretKey key = new SecretKeySpec(
-                secretKey.getBytes(),
-                algorithm);
-
-        return NimbusJwtDecoder.withSecretKey(key).build();
+        try {
+            RSAPublicKey publicKey = KeyLoader.loadPublicKey(publicKeyLocation);
+            return NimbusJwtDecoder.withPublicKey(publicKey).build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load public key for JwtDecoder", e);
+        }
     }
 
     @Bean
@@ -86,13 +84,13 @@ public class SecurityConfig {
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
             String role = jwt.getClaimAsString("role");
-            
+
             if (role != null) {
                 authorities.add(new SimpleGrantedAuthority(role));
             }
             return authorities;
         });
-        
+
         return converter;
     }
 

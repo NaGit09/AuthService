@@ -33,3 +33,5 @@ build/
 .vscode/
 
 .env
+public.pem
+private_key_pkcs8.pem

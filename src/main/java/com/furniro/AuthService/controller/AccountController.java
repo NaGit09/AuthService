@@ -40,14 +40,6 @@ public class AccountController {
         return accountService.loginAccount(loginReq);
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<AType> logout
-        (Authentication authentication) {
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
-        String token = jwtAuth.getToken().getTokenValue();
-        return accountService.logoutAccount(token);
-    }
-
     @PostMapping("/send-otp")
     public ResponseEntity<AType> sendOTP
         (@RequestBody String email) {
@@ -66,11 +58,19 @@ public class AccountController {
         return accountService.changePassword(changePasswordReq);
     }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<AType> refreshToken(
-        @RequestHeader("Authorization") String token) {
-        String refreshToken = token.substring(7);
-        return accountService.refreshToken(refreshToken);
+    // API require bearer token
+    @PostMapping("/logout")
+    public ResponseEntity<AType> logout(Authentication authentication) {
+        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
+        String token = jwtAuth.getToken().getTokenValue();
+        return accountService.logoutAccount(token);
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<AType> refreshToken(
+            Authentication authentication) {
+        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
+        String refreshToken = jwtAuth.getToken().getTokenValue();
+        return accountService.refreshToken(refreshToken);
+    }
 }
