@@ -20,6 +20,7 @@ public interface AccountRepository extends JpaRepository<Account, Integer> {
 
     boolean existsByEmail(String email);
 
+    boolean existsByAccountID(Integer id);
     boolean existsByUserName(String username);
 
 
@@ -45,5 +46,4 @@ public interface AccountRepository extends JpaRepository<Account, Integer> {
     @Query("UPDATE Account a SET a.banned = false WHERE a.accountID IN :ids")
     int unbanAccounts(@Param("ids") List<Integer> ids);
 
-    boolean existsByAccountID(Integer accountID);
 }

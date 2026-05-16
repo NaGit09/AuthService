@@ -16,7 +16,10 @@ public enum AuthErrorCode {
     OTP_EXPIRED(401, "Your OTP has expired"),
     PASSWORD_NOT_MATCH(401, "Incorrect password"),
     VERIFY_FAILED(401, "User vifies an error"),
+    INVALID_ACCOUNT(404, "Invalid account"),
+    USERNAME_ALREADY_EXISTS(409, "Username conflicts" ),
     ACCOUNT_NOT_FOUND(404, "Account not found");
+
 
     private final int code;
     private final String message;

@@ -1,20 +1,15 @@
 package com.furniro.AuthService.controller;
 
-import java.util.List;
-
+import com.furniro.AuthService.dto.API.AType;
+import com.furniro.AuthService.dto.req.AddAccountReq;
+import com.furniro.AuthService.service.AdminService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.furniro.AuthService.dto.API.AType;
-import com.furniro.AuthService.service.AdminService;
-
-import org.springframework.web.bind.annotation.RequestBody;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin")
@@ -48,6 +43,11 @@ public class AdminController {
     public ResponseEntity<AType> delete(
             @RequestBody List<Integer> accountIDs) {
         return adminService.deleteAccount(accountIDs);
+    }
+
+    @PostMapping("/add-account")
+    public ResponseEntity<AType> add(@Valid @RequestBody AddAccountReq request) {
+    return adminService.addAccount(request);
     }
 
     @GetMapping("/all-account")

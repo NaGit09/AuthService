@@ -1,8 +1,18 @@
 package com.furniro.AuthService.service;
 
-import java.util.List;
-import java.util.function.IntSupplier;
-
+import com.furniro.AuthService.database.entity.Account;
+import com.furniro.AuthService.database.repository.AccountRepository;
+import com.furniro.AuthService.dto.API.AType;
+import com.furniro.AuthService.dto.API.ApiType;
+import com.furniro.AuthService.dto.req.AddAccountReq;
+import com.furniro.AuthService.dto.res.AccountRes;
+import com.furniro.AuthService.exception.imp.AuthException;
+import com.furniro.AuthService.util.enums.LoginType;
+import com.furniro.AuthService.util.enums.Role;
+import com.furniro.AuthService.util.error.AuthErrorCode;
+import jakarta.validation.constraints.NotEmpty;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -12,17 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
-
-import com.furniro.AuthService.database.entity.Account;
-import com.furniro.AuthService.database.repository.AccountRepository;
-import com.furniro.AuthService.dto.API.AType;
-import com.furniro.AuthService.dto.API.ApiType;
-import com.furniro.AuthService.exception.imp.AuthException;
-import com.furniro.AuthService.util.error.AuthErrorCode;
-
-import jakarta.validation.constraints.NotEmpty;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.function.IntSupplier;
 
 @Service
 @RequiredArgsConstructor
@@ -59,7 +60,7 @@ public class AdminService {
     }
 
     public ResponseEntity<AType> resetPassword
-        (@NotEmpty List<Integer> ids) {
+            (@NotEmpty List<Integer> ids) {
         String hashPassword = passwordEncoder.encode("furniro2026");
 
         return executeBulkUpdate(
@@ -70,7 +71,7 @@ public class AdminService {
     }
 
     public ResponseEntity<AType> banAccount
-        (@NotEmpty List<Integer> ids) {
+            (@NotEmpty List<Integer> ids) {
         return executeBulkUpdate(
                 ids,
                 "Ban account",
@@ -79,7 +80,7 @@ public class AdminService {
     }
 
     public ResponseEntity<AType> unbanAccount
-        (@NotEmpty List<Integer> ids) {
+            (@NotEmpty List<Integer> ids) {
         return executeBulkUpdate(
                 ids,
                 "Unban account",
@@ -88,7 +89,7 @@ public class AdminService {
     }
 
     public ResponseEntity<AType> deleteAccount
-        (@NotEmpty List<Integer> ids) {
+            (@NotEmpty List<Integer> ids) {
         return executeBulkUpdate(
                 ids,
                 "Delete account",
@@ -113,5 +114,48 @@ public class AdminService {
 
         // 3. Return data with ApiType format
         return ResponseEntity.ok(ApiType.success(getAccounts, "Get all accounts successfully"));
+    }
+
+    public ResponseEntity<AType> addAccount(AddAccountReq addAccountReq) {
+
+        if (accountRepository.existsByEmail(addAccountReq.getEmail())) {
+            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
+            throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
+        }
+        String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
+
+        Account account = Account.builder()
+                .userName(addAccountReq.getUserName())
+                .email(addAccountReq.getEmail())
+                .phone(addAccountReq.getPhone())
+                .passwordHash(passwordHash)
+                .loginType(LoginType.NORMAL)
+                .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
+                .active(true)
+                .banned(false)
+                .isDeleted(false)
+                .build();
+        Account savedAccount = accountRepository.save(account);
+        log.info("Add account successfully: accountID={}, userName={}",
+                savedAccount.getAccountID(),
+                savedAccount.getUserName()
+        );
+        AccountRes response = AccountRes.builder()
+                .accountID(savedAccount.getAccountID())
+                .userName(savedAccount.getUserName())
+                .email(savedAccount.getEmail())
+                .phone(savedAccount.getPhone())
+                .role(savedAccount.getRole())
+                .active(savedAccount.getActive())
+                .banned(savedAccount.getBanned())
+                .build();
+
+
+        return ResponseEntity.ok(ApiType.success(response, "Add account successfully"));
+
+
     }
 }

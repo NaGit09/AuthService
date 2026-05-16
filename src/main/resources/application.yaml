@@ -1,6 +1,12 @@
 spring:
   application:
     name: AuthService
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:auth-service-group}
+
   security:
     oauth2:
       resourceserver:
