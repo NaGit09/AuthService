@@ -18,15 +18,15 @@ import com.furniro.AuthService.database.repository.AccountRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
+import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.dto.res.LoginRes;
-import com.furniro.AuthService.exception.imp.AuthException;
+import com.furniro.AuthService.exception.CustomException;
 import com.furniro.AuthService.mapper.AuthMapper;
 import com.furniro.AuthService.util.UserUtils;
-import com.furniro.AuthService.util.error.AuthErrorCode;
 import com.furniro.AuthService.service.other.JWTService;
 import com.furniro.AuthService.service.other.KafkaProducer;
 import com.furniro.AuthService.service.other.RedisService;
@@ -54,7 +54,7 @@ public class AccountService {
 
     public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
-            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            throw new CustomException(ErrorType.badRequest("Email already exists"));
         }
         return ResponseEntity.ok(ApiType.success(true));
     }
@@ -88,7 +88,7 @@ public class AccountService {
     public Account saveAccountAndProfile(RegisterReq registerReq, String encodedPassword) {
 
         if (accountRepository.existsByEmail(registerReq.getEmail())) {
-            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            throw new CustomException(ErrorType.badRequest("Email already exists"));
         }
 
         String username = UserUtils.generateUniqueUsername();
@@ -117,7 +117,7 @@ public class AccountService {
     public ResponseEntity<AType> activeAccount(@NonNull Integer accountID) {
 
         Account account = accountRepository.findById(accountID)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
         if (account.getActive()) {
             return ResponseEntity.ok(ApiType.success(false, "Account is already activated"));
@@ -134,20 +134,20 @@ public class AccountService {
 
         // 1. Check account existed
         Account account = accountRepository.findByEmail(loginReq.getEmail())
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
         // 2. Check user was active or baned account
         if (Boolean.FALSE.equals(account.getActive())) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
+            throw new CustomException(ErrorType.badRequest("Account is not active"));
         }
 
         if (Boolean.TRUE.equals(account.getBanned())) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_IS_BANED);
+            throw new CustomException(ErrorType.badRequest("Account is banned"));
         }
 
         // 3. Check password is match
         if (!passwordEncoder.matches(loginReq.getPassword(), account.getPasswordHash())) {
-            throw new AuthException(AuthErrorCode.INVALID_PASSWORD);
+            throw new CustomException(ErrorType.badRequest("Invalid password"));
         }
 
         // 4. Generate login response
@@ -166,7 +166,7 @@ public class AccountService {
 
         // 3. Get user info in DB
         User user = userRepository.findByAccount(account)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
         // 5. Return data for client
         return authMapper.toLoginRes(account, user, accessToken, refreshToken);
@@ -179,7 +179,7 @@ public class AccountService {
         log.info("authentication status : {}", isValid);
 
         if (!isValid) {
-            throw new AuthException(AuthErrorCode.VERIFY_FAILED);
+            throw new CustomException(ErrorType.badRequest("Invalid token"));
         }
 
         // 2. Return result
@@ -194,16 +194,16 @@ public class AccountService {
         boolean hasKey = redisService.isCaching(cachingKey);
 
         if (hasKey) {
-            throw new AuthException(AuthErrorCode.OTP_EXPIRED);
+            throw new CustomException(ErrorType.badRequest("OTP has expired"));
         }
 
         // 2. Check user exists
         Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
         // 3. Check user is active
         if (Boolean.FALSE.equals(account.getActive())) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
+            throw new CustomException(ErrorType.badRequest("Account is not active"));
         }
 
         // 4. Create random OTP
@@ -234,12 +234,12 @@ public class AccountService {
 
         // 2. Check OTP existed
         if (otpExist == null) {
-            throw new AuthException(AuthErrorCode.NOT_FOUND_OTP);
+            throw new CustomException(ErrorType.notFound("OTP not found"));
         }
 
         // 3. Check OTP matched
         if (!otpExist.equals(confirmOTPReq.getOtp())) {
-            throw new AuthException(AuthErrorCode.OTP_NOT_MATCH);
+            throw new CustomException(ErrorType.badRequest("OTP not match"));
         }
 
         // 4. return result for user
@@ -253,19 +253,19 @@ public class AccountService {
 
         boolean hasKey = redisService.isCaching(cachingKey);
         if (hasKey) {
-            throw new AuthException(AuthErrorCode.OTP_EXPIRED);
+            throw new CustomException(ErrorType.badRequest("OTP has expired"));
         }
 
         // 2.Check user existed
         Account account = accountRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
         // 3. Compare password
         String oldPassword = req.getPassword();
         String newPassword = req.getConfirmPassword();
 
         if (!oldPassword.equals(newPassword)) {
-            throw new AuthException(AuthErrorCode.PASSWORD_NOT_MATCH);
+            throw new CustomException(ErrorType.badRequest("Password not match"));
         }
 
         // 4. Save new password and return result
@@ -282,14 +282,14 @@ public class AccountService {
         boolean isValid = jwtService.validateToken(token, "REFRESH");
 
         if (!isValid) {
-            throw new AuthException(AuthErrorCode.INVALID_TOKEN);
+            throw new CustomException(ErrorType.badRequest("Invalid token"));
         }
 
         String username = jwtService.extractUsername(token);
 
         // 2. Check user existed
         Account account = accountRepository.findByUserName(username).orElseThrow(
-                () -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
+                () -> new CustomException(ErrorType.notFound("Account not found")));
 
         // 3. Sign access token and return result
         String accessToken = jwtService.generateToken(account, "ACCESS");

@@ -25,7 +25,7 @@ The **Authentication Service** is the backbone of the Furniro ecosystem, providi
 | Logic | Data | Security | DevOps |
 | :--- | :--- | :--- | :--- |
 | **Java 17** | **MySQL 8.x** | **Spring Security** | **Docker** |
-| **Spring Boot 4.0.x** | **Redis** | **JWT (jjwt)** | **Maven** |
+| **Spring Boot 4.0.x** | **Redis** | **JWT (jjwt with RS256)** | **Maven** |
 | **Spring Data JPA** | **Kafka** | **OAuth2 Resource Server** | **Dotenv-java** |
 | **Lombok** | **Hibernate** | **Validation (Jakarta)** | **Springdoc OpenAPI** |
 
@@ -49,7 +49,20 @@ The **Authentication Service** is the backbone of the Furniro ecosystem, providi
    cd AuthService
    ```
 
-2. **Configure Environment**:
+2. **Generate RSA Keys**:
+   The service uses RS256 for JWT signing. Generate the keys in the root directory:
+   ```bash
+   # Generate a 2048-bit RSA private key
+   openssl genrsa -out private_key.pem 2048
+   
+   # Convert private key to PKCS#8 format (required by Java)
+   openssl pkcs8 -topk8 -inform PEM -in private_key.pem -out private_key_pkcs8.pem -nocrypt
+   
+   # Extract the public key
+   openssl rsa -in private_key.pem -pubout -out public.pem
+   ```
+
+3. **Configure Environment**:
    Create a `.env` file in the root:
    ```env
    # Database Configuration
@@ -57,17 +70,19 @@ The **Authentication Service** is the backbone of the Furniro ecosystem, providi
    DATABASE_USERNAME=root
    DATABASE_PASSWORD=your_secure_password
 
-   # JWT Configuration
-   JWT_SECRET_KEY=your_super_secret_high_entropy_key_here
+   # JWT Configuration (RSA Keys)
+   JWT_ISS=furniro-auth-service
+   JWT_PRIVATE=./private_key_pkcs8.pem
+   JWT_PUBLIC=./public.pem
    JWT_ACCESS_EXPIRATION=3600000        # 1 Hour
-   JWT_REFRESH_EXPIRATION=604800000    # 7 Days
-   JWT_ALGORITHM=HmacSHA256
+   JWT_REFRESH_EXPIRATION=604800000     # 7 Days
+   JWT_ALGORITHM=RS256
 
    # Server Path
    SERVER_PATH=/api/v1/furniro
    ```
 
-3. **Run the Service**:
+4. **Run the Service**:
    ```bash
    ./mvnw spring-boot:run
    ```

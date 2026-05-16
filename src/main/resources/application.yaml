@@ -6,17 +6,16 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP_ID:auth-service-group}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
 
   security:
     oauth2:
       resourceserver:
         jwt:
-<<<<<<< HEAD
-          secret-key: ${JWT_SECRET_KEY}
-=======
           public-key-location: file:${JWT_PUBLIC}
 
->>>>>>> 8f97c7cce317aa2bcef35eb62080da4f462322c5
   devtools:
     add-properties: false
   data:
@@ -32,16 +31,6 @@ spring:
     password: ${DATABASE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-<<<<<<< HEAD
-=======
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
-
->>>>>>> 8f97c7cce317aa2bcef35eb62080da4f462322c5
   jpa:
     hibernate:
       naming:
@@ -49,36 +38,13 @@ spring:
       ddl-auto: update
     show-sql: true
 
-<<<<<<< HEAD
-  # mail:
-  #   host: ${MAIL_HOST}
-  #   port: ${MAIL_PORT}
-  #   password: ${MAIL_PASSWORD}
-  #   username: ${MAIL_NAME}
-  #   properties:
-  #     mail:
-  #       smtp:
-  #         auth: true
-  #         starttls:
-  #           enable: true
-
-# cloudinary:
-#   cloud_name : ${CLOUDINARY_NAME}
-#   api_key : ${CLOUDINARY_KEY}
-#   api_secret : ${CLOUDINARY_SECRET}
-=======
 auth:
   jwt:
     issuer: ${JWT_ISS}
-
     private-key-location: file:${JWT_PRIVATE}
-
     access-expiration: ${JWT_ACCESS_EXPIRATION}
-
     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
-
     algorithm: ${JWT_ALGORITHM}
->>>>>>> 8f97c7cce317aa2bcef35eb62080da4f462322c5
 
 server:
   servlet:
@@ -87,10 +53,6 @@ server:
 logging:
   level:
     root: info
-<<<<<<< HEAD
-    org.springframework.web: debug
-    web: debug
-=======
     "[org.springframework.web]": debug
     "[org.springframework.security]": DEBUG
 
@@ -110,4 +72,3 @@ springdoc:
     config-url: /api/v1/furniro/auth-service/v3/api-docs/swagger-config
     url: /api/v1/furniro/auth-service/v3/api-docs
     disable-swagger-default-url: true
->>>>>>> 8f97c7cce317aa2bcef35eb62080da4f462322c5

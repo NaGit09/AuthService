@@ -1,5 +1,6 @@
 package com.furniro.AuthService.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
@@ -104,7 +105,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
-                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
+                        .dispatcherTypeMatchers( DispatcherType.ERROR).permitAll()
                         .requestMatchers(WHITE_LIST_URLS).permitAll()
                         .anyRequest().authenticated())
 

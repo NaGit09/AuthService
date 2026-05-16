@@ -76,7 +76,6 @@ public class AccountController {
             return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
         }
         String refreshToken = jwtAuth.getToken().getTokenValue();
-        log.info("refreshToken: {}", refreshToken);
         return accountService.refreshToken(refreshToken);
     }
 }

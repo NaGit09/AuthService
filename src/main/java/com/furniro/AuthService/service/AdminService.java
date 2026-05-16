@@ -4,12 +4,12 @@ import com.furniro.AuthService.database.entity.Account;
 import com.furniro.AuthService.database.repository.AccountRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
+import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.AddAccountReq;
 import com.furniro.AuthService.dto.res.AccountRes;
-import com.furniro.AuthService.exception.imp.AuthException;
+import com.furniro.AuthService.exception.CustomException;
 import com.furniro.AuthService.util.enums.LoginType;
 import com.furniro.AuthService.util.enums.Role;
-import com.furniro.AuthService.util.error.AuthErrorCode;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,14 +43,14 @@ public class AdminService {
         long count = accountRepository.countByAccountIDIn(accountIDs);
 
         if (count == 0) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
+            throw new CustomException(ErrorType.notFound("Account not found !"));
         }
 
         // 2. Execute update logic
         int result = updateLogic.getAsInt();
 
         if (result == 0) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
+            throw new CustomException(ErrorType.notFound("Account not found !"));
         }
 
         // 3. Return data with ApiType format
@@ -109,7 +109,7 @@ public class AdminService {
         Page<Account> getAccounts = accountRepository.findAll(pageable);
 
         if (getAccounts.isEmpty()) {
-            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND);
+            throw new CustomException(ErrorType.notFound("Account not found !"));
         }
 
         // 3. Return data with ApiType format
@@ -119,11 +119,11 @@ public class AdminService {
     public ResponseEntity<AType> addAccount(AddAccountReq addAccountReq) {
 
         if (accountRepository.existsByEmail(addAccountReq.getEmail())) {
-            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            throw new CustomException(ErrorType.badRequest("Email already exists !"));
         }
 
         if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
-            throw new AuthException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
+            throw new CustomException(ErrorType.badRequest("Username already exists !"));
         }
         String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
 

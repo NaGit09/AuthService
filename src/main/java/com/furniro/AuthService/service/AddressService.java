@@ -11,9 +11,9 @@ import com.furniro.AuthService.database.repository.AddressRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
+import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.AddressReq;
-import com.furniro.AuthService.exception.imp.AddressException;
-import com.furniro.AuthService.util.error.AddressErrorCode;
+import com.furniro.AuthService.exception.CustomException;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -39,11 +39,11 @@ public class AddressService {
     (@NonNull AddressReq updateAddressReq) {
         // 1. Check user exist
         User user = userRepository.findById(updateAddressReq.getUserID())
-                .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("User not found !")));
 
         // 2. Check address exist
         Address address = addressRepository.findById(updateAddressReq.getAddressID())
-                .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
 
         // 3. Update address
         address.setUser(user);
@@ -59,7 +59,7 @@ public class AddressService {
     (@NonNull Integer addressID) {
         // 1. Check address exist
         Address address = addressRepository.findById(addressID)
-                .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
         
         // 2. Delete address
         addressRepository.delete(address);
@@ -72,7 +72,7 @@ public class AddressService {
     (@NonNull Integer addressID) {
         // 1. Check address exist
         Address address = addressRepository.findById(addressID)
-                .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
         
         // 2. Return response
         return ResponseEntity.ok(ApiType.success(address, "Address found successfully"));
@@ -82,7 +82,7 @@ public class AddressService {
     (@NonNull Integer userID) {
         // 1. Check user exist
         User user = userRepository.findById(userID)
-                .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("User not found !")));
         
         // 2. Get address by user
         List<Address> addresses = addressRepository.findByUser(user).stream().toList();
