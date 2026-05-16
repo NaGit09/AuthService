@@ -6,11 +6,14 @@ import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.furniro.AuthService.util.enums.Gender;
 
 @Entity
-@Table(name = "User")
-@Data
+@Table(name = "users")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -37,10 +40,11 @@ public class User {
 
     private LocalDate dateOfBirth;
 
-    @OneToOne
-    @JoinColumn(name = "AccountID", referencedColumnName = "AccountID", nullable = false)
+    @OneToOne(mappedBy = "user")
+    @JsonBackReference
     private Account account;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
     private List<Address> addresses;
 }

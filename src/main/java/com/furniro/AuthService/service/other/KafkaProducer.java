@@ -1,4 +1,4 @@
-package com.furniro.AuthService.service.kafka;
+package com.furniro.AuthService.service.other;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

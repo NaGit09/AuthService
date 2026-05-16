@@ -1,49 +1,67 @@
 package com.furniro.AuthService.service.other;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.furniro.AuthService.database.entity.Account;
+import com.furniro.AuthService.util.KeyLoader;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
 public class JWTService {
 
-    @Value("${JWT_SECRET_KEY}")
-    private String secretKey;
-
-    @Value("${JWT_ACCESS_EXPIRATION}")
+    @Value("${auth.jwt.access-expiration}")
     private long accessExpiration;
 
-    @Value("${JWT_REFRESH_EXPIRATION}")
+    @Value("${auth.jwt.refresh-expiration}")
     private long refreshExpiration;
 
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    @Value("${spring.security.oauth2.resourceserver.jwt.public-key-location}")
+    private String publicKeyLocation;
+
+    @Value("${auth.jwt.private-key-location}")
+    private String privateKeyLocation;
+
+    @Value("${auth.jwt.issuer}")
+    private String issuer;
+
+    @Value("${auth.jwt.algorithm}")
+    private String algorithm;
+
+    private RSAPrivateKey privateKey;
+
+    private RSAPublicKey publicKey;
+
+    @PostConstruct
+    private void initKeys() {
+        try {
+            this.privateKey = KeyLoader.loadPrivateKey(privateKeyLocation);
+            this.publicKey = KeyLoader.loadPublicKey(publicKeyLocation);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load RSA key pair", e);
+        }
     }
 
-    public String extractUsername
-    (String token) {
+    public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public <T> T extractClaim
-    (String token, Function<Claims, T> claimsResolver) {
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    public String generateToken
-    (Account account, String tokenType) {
-
+    public String generateToken(Account account, String tokenType) {
+        
         long expirationTime = tokenType.equalsIgnoreCase("ACCESS")
                 ? accessExpiration
                 : refreshExpiration;
@@ -52,33 +70,35 @@ public class JWTService {
                 .subject(account.getUserName())
                 .claim("role", account.getRole())
                 .claim("type", tokenType)
+                .id(UUID.randomUUID().toString())
+                .issuer(issuer)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
-                .signWith(getSigningKey())
+                .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
     }
 
-    public boolean validateToken
-    (String token, String tokenType) {
+    public boolean validateToken(String token, String tokenType) {
+
         try {
             Claims claims = extractAllClaims(token);
 
-            boolean isCorrectType = claims.get("type").toString().equalsIgnoreCase(tokenType);
+            boolean isCorrectType = claims.get("type", String.class).equalsIgnoreCase(tokenType);
             boolean isNotExpired = !claims.getExpiration().before(new Date());
 
             return isCorrectType && isNotExpired;
-        } catch (Exception e) {
+        } catch (JwtException e) {
             return false;
+        } catch (Exception e) {
+            throw new RuntimeException("Unexpected error during token validation", e);
         }
     }
 
-    private Claims extractAllClaims
-    (String token) {
+    private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(publicKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
-
 }

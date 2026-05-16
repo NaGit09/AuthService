@@ -8,6 +8,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.web.bind.annotation.*;
 
 import com.furniro.AuthService.dto.API.AType;
+import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
 import com.furniro.AuthService.dto.req.LoginReq;
@@ -40,14 +41,6 @@ public class AccountController {
         return accountService.loginAccount(loginReq);
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<AType> logout
-        (Authentication authentication) {
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
-        String token = jwtAuth.getToken().getTokenValue();
-        return accountService.logoutAccount(token);
-    }
-
     @PostMapping("/send-otp")
     public ResponseEntity<AType> sendOTP
         (@RequestBody String email) {
@@ -66,11 +59,24 @@ public class AccountController {
         return accountService.changePassword(changePasswordReq);
     }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<AType> refreshToken(
-        @RequestHeader("Authorization") String token) {
-        String refreshToken = token.substring(7);
-        return accountService.refreshToken(refreshToken);
+    // API require bearer token
+    @PostMapping("/logout")
+    public ResponseEntity<AType> logout(Authentication authentication) {
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
+            return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
+        }
+        String token = jwtAuth.getToken().getTokenValue();
+        return accountService.logoutAccount(token);
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<AType> refreshToken(
+            Authentication authentication) {
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
+            return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
+        }
+        String refreshToken = jwtAuth.getToken().getTokenValue();
+        log.info("refreshToken: {}", refreshToken);
+        return accountService.refreshToken(refreshToken);
+    }
 }

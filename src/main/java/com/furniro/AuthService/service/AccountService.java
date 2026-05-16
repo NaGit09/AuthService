@@ -13,10 +13,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.validation.annotation.Validated;
 
 import com.furniro.AuthService.database.entity.Account;
-import com.furniro.AuthService.database.entity.ExistingTokens;
 import com.furniro.AuthService.database.entity.User;
 import com.furniro.AuthService.database.repository.AccountRepository;
-import com.furniro.AuthService.database.repository.TokenRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
@@ -29,8 +27,8 @@ import com.furniro.AuthService.exception.imp.AuthException;
 import com.furniro.AuthService.mapper.AuthMapper;
 import com.furniro.AuthService.util.UserUtils;
 import com.furniro.AuthService.util.error.AuthErrorCode;
-import com.furniro.AuthService.service.kafka.KafkaProducer;
 import com.furniro.AuthService.service.other.JWTService;
+import com.furniro.AuthService.service.other.KafkaProducer;
 import com.furniro.AuthService.service.other.RedisService;
 
 import java.util.HashMap;
@@ -47,7 +45,6 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
-    private final TokenRepository tokenRepository;
     private final RedisService redisService;
     private final UserRepository userRepository;
     private final UserService userService;
@@ -162,29 +159,10 @@ public class AccountService {
         // 1. Sign access token
         String accessToken = jwtService.generateToken(account, "ACCESS");
 
-        // 2. Find old refresh token if it has in DB
-        ExistingTokens existingToken = tokenRepository.findByAccount(account)
-                .orElse(new ExistingTokens());
+        // 2. Sign refresh token
+        String refreshToken = jwtService.generateToken(account, "REFRESH");
 
-        String refreshToken;
-
-        // 3. if refresh token not exist in DB , create new existing token and save to DB
-        if (existingToken.getToken() == null ||
-                jwtService.validateToken(existingToken.getToken(), "REFRESH")) {
-
-            refreshToken = jwtService.generateToken(account, "REFRESH");
-
-            existingToken.setAccount(account);
-            existingToken.setToken(refreshToken);
-            existingToken.setTokenType("REFRESH");
-
-            tokenRepository.save(existingToken);
-
-        } else {
-            refreshToken = existingToken.getToken();
-        }
-
-        // 4. Get user info in DB
+        // 3. Get user info in DB
         User user = userRepository.findByAccount(account)
                 .orElseThrow(() -> new AuthException(AuthErrorCode.ACCOUNT_NOT_FOUND));
 
@@ -202,14 +180,7 @@ public class AccountService {
             throw new AuthException(AuthErrorCode.VERIFY_FAILED);
         }
 
-        // 2. Get Existing Token from DB
-        ExistingTokens existingToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_TOKEN));
-
-        // 3. Delete token , prevent user logout too much
-        tokenRepository.delete(existingToken);
-
-        // 4. Return result
+        // 2. Return result
         return ResponseEntity.ok(ApiType.success(true, "Logout successful"));
     }
 
@@ -304,6 +275,7 @@ public class AccountService {
 
     public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
 
+        log.info("refreshToken: {}", token);
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
 

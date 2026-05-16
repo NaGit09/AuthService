@@ -1,5 +1,6 @@
 package com.furniro.AuthService.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.furniro.AuthService.util.enums.AddressType;
 
 import jakarta.persistence.*;
@@ -7,7 +8,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "Address")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -37,5 +39,6 @@ public class Address {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserID", nullable = false)
+    @JsonBackReference
     private User user;
 }

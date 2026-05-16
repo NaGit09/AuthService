@@ -2,6 +2,7 @@ package com.furniro.AuthService.config;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,9 +23,9 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+import com.furniro.AuthService.util.KeyLoader;
 
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -36,12 +38,13 @@ public class SecurityConfig {
     private static final String[] WHITE_LIST_URLS = {
             "/account/login",
             "/account/register",
-            "/account/sendOTP",
-            "/account/confirmOTP",
+            "/account/send-otp",
+            "/account/confirm-otp",
             "/account/refresh",
-            "/account/logout",
-            "/account/changePassword",
+            "/account/change-password",
             "/account/confirm/**",
+            "/account/active",
+            "/error",
             "/v3/api-docs/**",
             "/v3/api-docs.yaml",
             "/swagger-ui/**",
@@ -51,12 +54,9 @@ public class SecurityConfig {
             "/actuator/**"
     };
 
-    @Value("${JWT_SECRET_KEY}")
-    private String secretKey;
-
-    @Value("${JWT_ALGORITHM}")
-    private String algorithm;
-
+    @Value("${spring.security.oauth2.resourceserver.jwt.public-key-location}")
+    private String publicKeyLocation;
+    
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -70,12 +70,12 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder() {
-
-        SecretKey key = new SecretKeySpec(
-                secretKey.getBytes(),
-                algorithm);
-
-        return NimbusJwtDecoder.withSecretKey(key).build();
+        try {
+            RSAPublicKey publicKey = KeyLoader.loadPublicKey(publicKeyLocation);
+            return NimbusJwtDecoder.withPublicKey(publicKey).build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load public key for JwtDecoder", e);
+        }
     }
 
     @Bean
@@ -86,13 +86,13 @@ public class SecurityConfig {
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
             String role = jwt.getClaimAsString("role");
-            
+
             if (role != null) {
                 authorities.add(new SimpleGrantedAuthority(role));
             }
             return authorities;
         });
-        
+
         return converter;
     }
 
@@ -104,6 +104,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                         .requestMatchers(WHITE_LIST_URLS).permitAll()
                         .anyRequest().authenticated())
 
@@ -125,6 +126,11 @@ public class SecurityConfig {
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         return http.build();
+    }
+
+    @Bean
+    WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers("/error");
     }
 
 }
