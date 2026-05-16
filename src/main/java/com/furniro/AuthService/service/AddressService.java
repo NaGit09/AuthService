@@ -13,7 +13,6 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.req.AddressReq;
 import com.furniro.AuthService.exception.imp.AddressException;
-import com.furniro.AuthService.mapper.AddressMapper;
 import com.furniro.AuthService.util.error.AddressErrorCode;
 
 import lombok.NonNull;
@@ -24,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 public class AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
-    private final AddressMapper addressMapper;
 
     public Address createAddress(User user) {
 
@@ -48,7 +46,6 @@ public class AddressService {
                 .orElseThrow(() -> new AddressException(AddressErrorCode.ADDRESS_NOT_FOUND));
 
         // 3. Update address
-        addressMapper.updateAddressFromReq(updateAddressReq, address);
         address.setUser(user);
 
         // 4. Save address

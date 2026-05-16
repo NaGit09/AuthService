@@ -38,7 +38,7 @@ public class Address {
     private AddressType addressType = AddressType.HOME;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "UserID", nullable = false)
+    @JoinColumn(name = "UserID")
     @JsonBackReference
     private User user;
 }

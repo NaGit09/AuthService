@@ -47,7 +47,7 @@ public class AccountService {
     private final JWTService jwtService;
     private final RedisService redisService;
     private final UserRepository userRepository;
-    private final UserService userService;
+
     private final AddressService addressService;
     private final KafkaProducer kafkaProducer;
     private final AuthMapper authMapper;
@@ -93,19 +93,21 @@ public class AccountService {
 
         String username = UserUtils.generateUniqueUsername();
 
+        User user = User.builder()
+                .firstName(registerReq.getFirstName())
+                .lastName(registerReq.getLastName())
+                .build();
+
         Account account = Account.builder()
                 .userName(username)
                 .email(registerReq.getEmail())
                 .phone(registerReq.getNumberPhone())
                 .passwordHash(encodedPassword)
                 .active(true)
+                .user(user)
                 .build();
 
         account = accountRepository.save(account);
-
-        User user = userService.createUser(account,
-                registerReq.getFirstName(),
-                registerReq.getLastName());
 
         addressService.createAddress(user);
 

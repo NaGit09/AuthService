@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.furniro.AuthService.util.enums.Gender;
 
 @Entity
-@Table(name = "users")
+@Table(name = "User")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -40,7 +40,7 @@ public class User {
 
     private LocalDate dateOfBirth;
 
-    @OneToOne(mappedBy = "user")
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonBackReference
     private Account account;
 

@@ -23,24 +23,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
 
-    public User createUser(Account account, String firstName, String lastName) {
-        // 1. check account , first name , last name exist
-        if (account == null || firstName == null || lastName == null) {
-                throw new UserException(UserErrorCode.USER_NOT_FOUND);
-        }
-        
-        // 2. create user
-        User newUser = User.builder()
-                .firstName(firstName)
-                .lastName(lastName)
-                .account(account)
-                .build();
-
-        // 3. save user
-        userRepository.save(newUser);
-
-        return newUser;
-    }
 
     public ResponseEntity<AType> getUserById(Integer id) {
         // 1. check user existed
