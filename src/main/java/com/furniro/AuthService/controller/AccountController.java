@@ -8,6 +8,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.web.bind.annotation.*;
 
 import com.furniro.AuthService.dto.API.AType;
+import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
 import com.furniro.AuthService.dto.req.LoginReq;
@@ -61,7 +62,9 @@ public class AccountController {
     // API require bearer token
     @PostMapping("/logout")
     public ResponseEntity<AType> logout(Authentication authentication) {
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
+            return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
+        }
         String token = jwtAuth.getToken().getTokenValue();
         return accountService.logoutAccount(token);
     }
@@ -69,8 +72,11 @@ public class AccountController {
     @PostMapping("/refresh")
     public ResponseEntity<AType> refreshToken(
             Authentication authentication) {
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
+            return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
+        }
         String refreshToken = jwtAuth.getToken().getTokenValue();
+        log.info("refreshToken: {}", refreshToken);
         return accountService.refreshToken(refreshToken);
     }
 }

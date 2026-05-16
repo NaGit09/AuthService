@@ -1,5 +1,6 @@
 package com.furniro.AuthService.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.furniro.AuthService.util.enums.LoginType;
 import com.furniro.AuthService.util.enums.Role;
 
@@ -63,6 +64,8 @@ public class Account {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserID", referencedColumnName = "userID")
+    @JsonManagedReference
     private User user;
 }

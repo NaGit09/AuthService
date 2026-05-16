@@ -275,6 +275,7 @@ public class AccountService {
 
     public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
 
+        log.info("refreshToken: {}", token);
         // 1. check token is refresh token and token don't expired
         boolean isValid = jwtService.validateToken(token, "REFRESH");
 
