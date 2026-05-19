@@ -47,8 +47,8 @@ auth:
     algorithm: ${JWT_ALGORITHM}
 
 server:
-  servlet:
-    context-path: ${SERVER_PATH}
+  port: ${SERVER_PORT:8081}
+  forward-headers-strategy: framework
 
 logging:
   level:

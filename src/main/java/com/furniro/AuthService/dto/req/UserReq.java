@@ -11,13 +11,16 @@ import lombok.Data;
 @Data
 public class UserReq {
     
-    
     private Integer userID;
-    @Size(max = 50, message = "First name maximum 50 characters")
     
+    @Size(max = 50, message = "First name maximum 50 characters")
     private String firstName;
+
     @Size(max = 50, message = "Last name maximum 50 characters")
     private String lastName;
+    
+    @Size(min = 8, max = 255, message = "Username must be between 8 and 255 characters")
+    private String username;
     
     private String avatarID;
 

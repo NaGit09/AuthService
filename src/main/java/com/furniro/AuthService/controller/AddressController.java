@@ -2,7 +2,6 @@ package com.furniro.AuthService.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -41,12 +40,5 @@ public class AddressController {
     @PreAuthorize("hasAuthority('CUSTOMER')")
     public ResponseEntity<AType> updateAddress(@RequestBody AddressReq req) {
         return addressService.updateAddress(req);
-    }
-
-    @DeleteMapping("/delete/{id}")
-    @PreAuthorize("hasAuthority('CUSTOMER')")
-    public ResponseEntity<AType> deleteAddress
-        (@PathVariable Integer id) {
-        return addressService.deleteAddress(id);
     }
 }

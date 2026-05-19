@@ -3,7 +3,9 @@ package com.furniro.AuthService.service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.furniro.AuthService.database.entity.Account;
 import com.furniro.AuthService.database.entity.User;
+import com.furniro.AuthService.database.repository.AccountRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
     private final UserMapper userMapper;
 
     public ResponseEntity<AType> getUserById(Integer id) {
@@ -44,11 +47,16 @@ public class UserService {
         User user = userRepository.findById(req.getUserID()).orElseThrow(
                 () -> new CustomException(ErrorType.notFound("User not found !")));
 
-        // 2. update user
+        Account account = accountRepository.findById(req.getUserID()).orElseThrow(
+                () -> new CustomException(ErrorType.notFound("User not found !")));
+
+        // 2. update user and account username
         userMapper.updateUserFromReq(req, user);
 
+        account.setUserName(req.getUsername());
         // 3. save user
         userRepository.save(user);
+        accountRepository.save(account);
 
         // 4. return response
         return ResponseEntity.ok(ApiType.success(user, "Update user by " + req.getUserID() + " success"));

@@ -6,6 +6,7 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.AddAccountReq;
+import com.furniro.AuthService.dto.res.AccountDetailsRes;
 import com.furniro.AuthService.dto.res.AccountRes;
 import com.furniro.AuthService.exception.CustomException;
 import com.furniro.AuthService.util.enums.LoginType;
@@ -112,8 +113,25 @@ public class AdminService {
             throw new CustomException(ErrorType.notFound("Account not found !"));
         }
 
+        // Map to AccountDetailsRes which matches the structure of LoginRes without tokens
+        Page<AccountDetailsRes> getAccountsRes = getAccounts.map(account -> {
+            var user = account.getUser();
+            return AccountDetailsRes.builder()
+                    .AccountID(account.getAccountID())
+                    .UserName(account.getUserName())
+                    .Email(account.getEmail())
+                    .Phone(account.getPhone())
+                    .Role(account.getRole())
+                    .Active(account.getActive())
+                    .Banned(account.getBanned())
+                    .FirstName(user != null ? user.getFirstName() : null)
+                    .LastName(user != null ? user.getLastName() : null)
+                    .AvatarUrl(user != null ? user.getAvatar() : null)
+                    .build();
+        });
+
         // 3. Return data with ApiType format
-        return ResponseEntity.ok(ApiType.success(getAccounts, "Get all accounts successfully"));
+        return ResponseEntity.ok(ApiType.success(getAccountsRes, "Get all accounts successfully"));
     }
 
     public ResponseEntity<AType> addAccount(AddAccountReq addAccountReq) {
