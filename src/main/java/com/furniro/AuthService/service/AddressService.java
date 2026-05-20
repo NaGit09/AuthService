@@ -45,6 +45,14 @@ public class AddressService {
         Address address = addressRepository.findById(updateAddressReq.getAddressID())
                 .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
 
+        address.setAddressType(updateAddressReq.getAddressType());  
+        address.setProvince(updateAddressReq.getProvince());
+        address.setDistrict(updateAddressReq.getDistrict());
+        address.setWard(updateAddressReq.getWard());
+        address.setStreet(updateAddressReq.getStreet());
+        address.setReceiverName(updateAddressReq.getReceiverName());
+        address.setReceiverPhone(updateAddressReq.getReceiverPhone());
+        address.setIsDefault(updateAddressReq.getIsDefault());
         // 3. Update address
         address.setUser(user);
 
