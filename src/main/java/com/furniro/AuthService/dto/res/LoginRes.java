@@ -16,4 +16,5 @@ public class LoginRes {
     private String AvatarUrl;
     private String Email;
     private Role Role;
+    private Integer accountID; 
 }

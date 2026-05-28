@@ -17,6 +17,8 @@ public interface AuthMapper {
     @Mapping(target = "AvatarUrl", source = "user.avatar")
     @Mapping(target = "Email", source = "account.email")
     @Mapping(target = "Role", source = "account.role")
+    @Mapping(target = "accountID", source = "account.accountID")
+    
     
     LoginRes toLoginRes(Account account, User user, String accessToken, String refreshToken);
 }

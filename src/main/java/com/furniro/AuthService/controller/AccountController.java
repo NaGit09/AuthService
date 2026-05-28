@@ -2,6 +2,9 @@ package com.furniro.AuthService.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -43,7 +46,8 @@ public class AccountController {
 
     @PostMapping("/send-otp")
     public ResponseEntity<AType> sendOTP
-        (@RequestBody String email) {
+        (@RequestBody Map<String, String> request) {
+        String email = request.get("email");
         return accountService.sendOTP(email);
     }
 
