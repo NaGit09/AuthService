@@ -21,6 +21,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -89,13 +90,19 @@ public class AdminService {
         );
     }
 
+    @Transactional
     public ResponseEntity<AType> deleteAccount
             (@NotEmpty List<Integer> ids) {
-        return executeBulkUpdate(
-                ids,
-                "Delete account",
-                () -> accountRepository.deleteAccounts(ids)
-        );
+        List<Account> accounts = accountRepository.findAllById(ids);
+        if (accounts.isEmpty()) {
+            throw new CustomException(ErrorType.notFound("Account not found !"));
+        }
+
+        accountRepository.deleteAll(accounts);
+
+        String message = "Delete account for " + accounts.size() + "/" + ids.size() + " account";
+        log.info("Message: {}", message);
+        return ResponseEntity.ok(ApiType.success(true, message));
     }
 
     public ResponseEntity<AType> getAllAccounts(

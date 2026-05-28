@@ -194,7 +194,7 @@ public class AccountService {
         boolean hasKey = redisService.isCaching(cachingKey);
 
         if (hasKey) {
-            throw new CustomException(ErrorType.badRequest("OTP has expired"));
+            throw new CustomException(ErrorType.badRequest("OTP has already sent, please wait for a while"));
         }
 
         // 2. Check user exists
@@ -252,8 +252,9 @@ public class AccountService {
         String cachingKey = "OTP:" + req.getEmail();
 
         boolean hasKey = redisService.isCaching(cachingKey);
+        
         if (hasKey) {
-            throw new CustomException(ErrorType.badRequest("OTP has expired"));
+            throw new CustomException(ErrorType.badRequest("OTP has already sent, please wait for a while"));
         }
 
         // 2.Check user existed
