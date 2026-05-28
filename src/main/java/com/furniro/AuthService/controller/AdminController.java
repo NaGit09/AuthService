@@ -2,9 +2,12 @@ package com.furniro.AuthService.controller;
 
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.req.AddAccountReq;
+import com.furniro.AuthService.dto.req.AddAccountsReq;
 import com.furniro.AuthService.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -46,9 +49,19 @@ public class AdminController {
     }
 
     @PostMapping("/add-account")
-    public ResponseEntity<AType> add(@Valid @RequestBody AddAccountReq request) {
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public AType add(@Valid @RequestBody AddAccountReq request) {
     return adminService.addAccount(request);
     }
+
+    @PostMapping("/add-accounts")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public AType addMultiAccounts(@Valid @RequestBody AddAccountsReq request) {
+    return adminService.addMultiAccounts(request);
+    }
+
+
 
     @GetMapping("/all-account")
     @PreAuthorize("hasAuthority('ADMIN')")
