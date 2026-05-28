@@ -21,6 +21,7 @@ import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
+import com.furniro.AuthService.dto.req.LoginByUsernameReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.dto.res.LoginRes;
@@ -130,32 +131,43 @@ public class AccountService {
         return ResponseEntity.ok(ApiType.success(true, "Account activated successfully"));
     }
 
-    public ResponseEntity<AType> loginAccount(@NonNull LoginReq loginReq) {
+    public ResponseEntity<AType> loginByEmail(@NonNull LoginReq loginReq) {
+    Account account = accountRepository.findByEmail(loginReq.getEmail())
+            .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
-        // 1. Check account existed
-        Account account = accountRepository.findByEmail(loginReq.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+    validateLoginAccount(account, loginReq.getPassword());
 
-        // 2. Check user was active or baned account
-        if (Boolean.FALSE.equals(account.getActive())) {
-            throw new CustomException(ErrorType.badRequest("Account is not active"));
-        }
+    LoginRes res = generateLoginResponse(account);
 
-        if (Boolean.TRUE.equals(account.getBanned())) {
-            throw new CustomException(ErrorType.badRequest("Account is banned"));
-        }
-
-        // 3. Check password is match
-        if (!passwordEncoder.matches(loginReq.getPassword(), account.getPasswordHash())) {
-            throw new CustomException(ErrorType.badRequest("Invalid password"));
-        }
-
-        // 4. Generate login response
-        LoginRes res = generateLoginResponse(account);
-
-        // 5. Return result
-        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+    return ResponseEntity.ok(ApiType.success(res, "Login successful"));
     }
+
+    public ResponseEntity<AType> loginByUsername(@NonNull LoginByUsernameReq req) {
+    Account account = accountRepository.findByUserName(req.getUserName())
+            .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+
+     validateLoginAccount(account, req.getPassword());
+
+    LoginRes res = generateLoginResponse(account);
+
+    return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+        }
+
+        private void validateLoginAccount(Account account, String rawPassword) {
+    if (Boolean.FALSE.equals(account.getActive())) {
+        throw new CustomException(ErrorType.badRequest("Account is not active"));
+    }
+
+    if (Boolean.TRUE.equals(account.getBanned())) {
+        throw new CustomException(ErrorType.badRequest("Account is banned"));
+    }
+
+    if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
+        throw new CustomException(ErrorType.badRequest("Invalid password"));
+    }
+
+
+}
 
     private LoginRes generateLoginResponse(Account account) {
         // 1. Sign access token

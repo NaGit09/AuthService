@@ -55,7 +55,6 @@ public class AdminController {
     }
 
     @PostMapping("/add-accounts")
-    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ADMIN')")
     public AType addMultiAccounts(@Valid @RequestBody AddAccountsReq request) {
     return adminService.addMultiAccounts(request);

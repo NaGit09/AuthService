@@ -38,6 +38,7 @@ public class SecurityConfig {
 
     private static final String[] WHITE_LIST_URLS = {
             "/account/login",
+            "/account/login-by-username",
             "/account/register",
             "/account/send-otp",
             "/account/confirm-otp",

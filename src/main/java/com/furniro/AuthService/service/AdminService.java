@@ -147,46 +147,40 @@ public class AdminService {
 
     public AType addAccount(AddAccountReq addAccountReq) {
 
-        if (accountRepository.existsByEmail(addAccountReq.getEmail())) {
-            throw new CustomException(ErrorType.badRequest("Email already exists !"));
-        }
-
-        if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
-            throw new CustomException(ErrorType.badRequest("Username already exists !"));
-        }
-        String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
-
-        Account account = Account.builder()
-                .userName(addAccountReq.getUserName())
-                .email(addAccountReq.getEmail())
-                .phone(addAccountReq.getPhone())
-                .passwordHash(passwordHash)
-                .loginType(LoginType.NORMAL)
-                .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
-                .active(true)
-                .banned(false)
-                .isDeleted(false)
-                .build();
-        Account savedAccount = accountRepository.save(account);
-        log.info("Add account successfully: accountID={}, userName={}",
-                savedAccount.getAccountID(),
-                savedAccount.getUserName()
-        );
-        AccountRes response = AccountRes.builder()
-                .accountID(savedAccount.getAccountID())
-                .userName(savedAccount.getUserName())
-                .email(savedAccount.getEmail())
-                .phone(savedAccount.getPhone())
-                .role(savedAccount.getRole())
-                .active(savedAccount.getActive())
-                .banned(savedAccount.getBanned())
-                .build();
-
-
-        return ApiType.success(response, "Add account successfully");
-
-
+    if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
+        throw new CustomException(ErrorType.badRequest("Username already exists !"));
     }
+
+    String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
+
+    Account account = Account.builder()
+            .userName(addAccountReq.getUserName())
+            .passwordHash(passwordHash)
+            .loginType(LoginType.NORMAL)
+            .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
+            .active(true)
+            .banned(false)
+            .isDeleted(false)
+            .build();
+
+    Account savedAccount = accountRepository.save(account);
+
+    log.info("Add account successfully: accountID={}, userName={}",
+            savedAccount.getAccountID(),
+            savedAccount.getUserName()
+    );
+
+    AccountRes response = AccountRes.builder()
+            .accountID(savedAccount.getAccountID())
+            .userName(savedAccount.getUserName())
+            .role(savedAccount.getRole())
+            .active(savedAccount.getActive())
+            .banned(savedAccount.getBanned())
+            .build();
+
+    return ApiType.success(response, "Add account successfully");
+    }
+
     public AType addMultiAccounts(AddAccountsReq request) {
 
     List<AccountRes> successAccounts = new ArrayList<>();
@@ -198,21 +192,11 @@ public class AdminService {
         AddAccountReq item = accounts.get(i);
 
         try {
-            if (accountRepository.existsByEmail(item.getEmail())) {
-                errors.add(AddAccountErrorRes.builder()
-                        .index(i)
-                        .userName(item.getUserName())
-                        .email(item.getEmail())
-                        .reason("Email already exists")
-                        .build());
-                continue;
-            }
-
+         
             if (accountRepository.existsByUserName(item.getUserName())) {
                 errors.add(AddAccountErrorRes.builder()
                         .index(i)
                         .userName(item.getUserName())
-                        .email(item.getEmail())
                         .reason("Username already exists")
                         .build());
                 continue;
@@ -222,8 +206,6 @@ public class AdminService {
 
             Account account = Account.builder()
                     .userName(item.getUserName())
-                    .email(item.getEmail())
-                    .phone(item.getPhone())
                     .passwordHash(passwordHash)
                     .loginType(LoginType.NORMAL)
                     .role(item.getRole() != null ? item.getRole() : Role.CUSTOMER)
@@ -250,7 +232,6 @@ public class AdminService {
             errors.add(AddAccountErrorRes.builder()
                     .index(i)
                     .userName(item.getUserName())
-                    .email(item.getEmail())
                     .reason(e.getMessage())
                     .build());
         }
