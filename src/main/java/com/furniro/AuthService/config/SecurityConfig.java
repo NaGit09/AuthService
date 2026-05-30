@@ -57,7 +57,7 @@ public class SecurityConfig {
 
     @Value("${spring.security.oauth2.resourceserver.jwt.public-key-location}")
     private String publicKeyLocation;
-    
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -65,16 +65,23 @@ public class SecurityConfig {
 
     @Bean
     AuthenticationManager authenticationManager(
+
             AuthenticationConfiguration config) throws Exception {
+                
         return config.getAuthenticationManager();
     }
 
     @Bean
     JwtDecoder jwtDecoder() {
+
         try {
+
             RSAPublicKey publicKey = KeyLoader.loadPublicKey(publicKeyLocation);
+
             return NimbusJwtDecoder.withPublicKey(publicKey).build();
+
         } catch (Exception e) {
+
             throw new RuntimeException("Failed to load public key for JwtDecoder", e);
         }
     }
@@ -85,7 +92,9 @@ public class SecurityConfig {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
 
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+
             Collection<GrantedAuthority> authorities = new ArrayList<>();
+
             String role = jwt.getClaimAsString("role");
 
             if (role != null) {
@@ -105,7 +114,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
-                        .dispatcherTypeMatchers( DispatcherType.ERROR).permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(WHITE_LIST_URLS).permitAll()
                         .anyRequest().authenticated())
 
@@ -122,8 +131,11 @@ public class SecurityConfig {
                                 }))
 
                 .oauth2ResourceServer(oauth2 -> oauth2
+
                         .jwt(jwt -> jwt
+
                                 .decoder(jwtDecoder())
+
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         return http.build();
@@ -131,7 +143,10 @@ public class SecurityConfig {
 
     @Bean
     WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers("/error");
+
+        return (web) -> web.ignoring()
+
+                .requestMatchers("/error");
     }
 
 }

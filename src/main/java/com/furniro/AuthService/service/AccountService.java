@@ -13,8 +13,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.validation.annotation.Validated;
 
 import com.furniro.AuthService.database.entity.Account;
+import com.furniro.AuthService.database.entity.Address;
 import com.furniro.AuthService.database.entity.User;
 import com.furniro.AuthService.database.repository.AccountRepository;
+import com.furniro.AuthService.database.repository.AddressRepository;
 import com.furniro.AuthService.database.repository.UserRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
@@ -43,18 +45,20 @@ import java.util.concurrent.TimeUnit;
 public class AccountService {
 
     private final AccountRepository accountRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JWTService jwtService;
-    private final RedisService redisService;
+    private final AddressRepository addressRepository;
     private final UserRepository userRepository;
 
-    private final AddressService addressService;
+    private final JWTService jwtService;
+    private final RedisService redisService;
+
     private final KafkaProducer kafkaProducer;
+    private final PasswordEncoder passwordEncoder;
     private final AuthMapper authMapper;
 
     public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
         if (accountRepository.existsByEmail(email)) {
-            throw new CustomException(ErrorType.badRequest("Email already exists"));
+            throw new CustomException(ErrorType
+                    .badRequest("Email already exists"));
         }
         return ResponseEntity.ok(ApiType.success(true));
     }
@@ -81,14 +85,16 @@ public class AccountService {
 
         LoginRes loginRes = generateLoginResponse(account);
 
-        return ResponseEntity.ok(ApiType.success(loginRes, "Registration successful."));
+        return ResponseEntity.ok(ApiType
+                .success(loginRes, "Registration successful."));
     }
 
     @Transactional
     public Account saveAccountAndProfile(RegisterReq registerReq, String encodedPassword) {
 
         if (accountRepository.existsByEmail(registerReq.getEmail())) {
-            throw new CustomException(ErrorType.badRequest("Email already exists"));
+            throw new CustomException(ErrorType
+                    .badRequest("Email already exists"));
         }
 
         String username = UserUtils.generateUniqueUsername();
@@ -97,6 +103,8 @@ public class AccountService {
                 .firstName(registerReq.getFirstName())
                 .lastName(registerReq.getLastName())
                 .build();
+                
+        userRepository.save(user);
 
         Account account = Account.builder()
                 .userName(username)
@@ -109,7 +117,9 @@ public class AccountService {
 
         account = accountRepository.save(account);
 
-        addressService.createAddress(user);
+        Address address = new Address();
+        address.setUser(user);
+        addressRepository.save(address);
 
         return account;
     }
@@ -117,17 +127,20 @@ public class AccountService {
     public ResponseEntity<AType> activeAccount(@NonNull Integer accountID) {
 
         Account account = accountRepository.findById(accountID)
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                        .notFound("Account not found")));
 
         if (account.getActive()) {
-            return ResponseEntity.ok(ApiType.success(false, "Account is already activated"));
+            return ResponseEntity.ok(ApiType
+                    .success(false, "Account is already activated"));
         }
 
         account.setActive(true);
 
         accountRepository.save(account);
 
-        return ResponseEntity.ok(ApiType.success(true, "Account activated successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(true, "Account activated successfully"));
     }
 
     public ResponseEntity<AType> loginAccount(@NonNull LoginReq loginReq) {
@@ -194,12 +207,14 @@ public class AccountService {
         boolean hasKey = redisService.isCaching(cachingKey);
 
         if (hasKey) {
-            throw new CustomException(ErrorType.badRequest("OTP has already sent, please wait for a while"));
+            throw new CustomException(ErrorType
+                    .badRequest("OTP has already sent, please wait for a while"));
         }
 
         // 2. Check user exists
         Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                        .notFound("Account not found")));
 
         // 3. Check user is active
         if (Boolean.FALSE.equals(account.getActive())) {
@@ -234,7 +249,7 @@ public class AccountService {
 
         // 2. Check OTP existed
         if (otpExist == null) {
-            throw new CustomException(ErrorType.notFound("OTP not found"));
+            throw new CustomException(ErrorType.notFound("OTP have existed"));
         }
 
         // 3. Check OTP matched
@@ -252,28 +267,32 @@ public class AccountService {
         String cachingKey = "OTP:" + req.getEmail();
 
         boolean hasKey = redisService.isCaching(cachingKey);
-        
+
         if (hasKey) {
-            throw new CustomException(ErrorType.badRequest("OTP has already sent, please wait for a while"));
+            throw new CustomException(ErrorType
+                    .badRequest("OTP has already sent, please wait for a while"));
         }
 
         // 2.Check user existed
         Account account = accountRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                        .notFound("Account not found")));
 
         // 3. Compare password
         String oldPassword = req.getPassword();
         String newPassword = req.getConfirmPassword();
 
         if (!oldPassword.equals(newPassword)) {
-            throw new CustomException(ErrorType.badRequest("Password not match"));
+            throw new CustomException(ErrorType
+                    .badRequest("Password not match"));
         }
 
         // 4. Save new password and return result
         account.setPasswordHash(passwordEncoder.encode(newPassword));
         accountRepository.save(account);
 
-        return ResponseEntity.ok(ApiType.success(true, "Password changed successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(true, "Password changed successfully"));
     }
 
     public ResponseEntity<AType> refreshToken(@NotEmpty String token) {
@@ -283,7 +302,8 @@ public class AccountService {
         boolean isValid = jwtService.validateToken(token, "REFRESH");
 
         if (!isValid) {
-            throw new CustomException(ErrorType.badRequest("Invalid token"));
+            throw new CustomException(ErrorType
+                    .badRequest("Invalid token"));
         }
 
         String username = jwtService.extractUsername(token);
@@ -295,7 +315,7 @@ public class AccountService {
         // 3. Sign access token and return result
         String accessToken = jwtService.generateToken(account, "ACCESS");
 
-        return ResponseEntity.ok(ApiType.success(accessToken, "Token refreshed successfully"));
+        return ResponseEntity.ok(ApiType.success(accessToken));
     }
 
 }

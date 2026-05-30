@@ -23,12 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AddressController {
     private final AddressService addressService;
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('CUSTOMER')")
-    public ResponseEntity<AType> getAddress(@PathVariable Integer id) {
-        return addressService.getAddress(id);
-    }
-
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasAuthority('CUSTOMER')")
     public ResponseEntity<AType> getAddressByUserId

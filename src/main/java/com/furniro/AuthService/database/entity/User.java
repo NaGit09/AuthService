@@ -30,7 +30,7 @@ public class User {
 
     @Column(length = 50, nullable = false)
     @Builder.Default
-    private String avatarID = "DEFAULT_AVATAR";
+    private Integer avatarID = 1;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
