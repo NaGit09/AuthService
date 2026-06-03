@@ -47,7 +47,7 @@ public class AdminController {
 
     @PostMapping("/add-account")
     public ResponseEntity<AType> add(@Valid @RequestBody AddAccountReq request) {
-    return adminService.addAccount(request);
+        return adminService.addAccount(request);
     }
 
     @GetMapping("/all-account")
@@ -57,6 +57,13 @@ public class AdminController {
             @RequestParam(defaultValue = "20") Integer size,
             @RequestParam(defaultValue = "createdAt") String sortBy) {
         return adminService.getAllAccounts(page, size, sortBy);
+    }
+
+    @GetMapping("/total")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<AType> totalAccounts() {
+
+        return adminService.getTotalAccount();
     }
 
 }

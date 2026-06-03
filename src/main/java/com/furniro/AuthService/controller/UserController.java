@@ -22,7 +22,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('CUSTOMER')")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ResponseEntity<AType> getUserById(@PathVariable Integer id) {
         return userService.getUserById(id);
     }
@@ -32,7 +32,6 @@ public class UserController {
     public ResponseEntity<AType> getAllUser() {
         return userService.getAllUser();
     }
-
 
     @PutMapping("/update")
     @PreAuthorize("hasAuthority('CUSTOMER')")

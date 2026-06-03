@@ -7,7 +7,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.furniro.AuthService.util.enums.Gender;
 
 @Entity
@@ -45,6 +44,5 @@ public class User {
     private Account account;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    @JsonManagedReference
     private List<Address> addresses;
 }

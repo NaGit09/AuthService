@@ -1,5 +1,8 @@
 package com.furniro.AuthService.service;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +16,7 @@ import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.UserReq;
 import com.furniro.AuthService.exception.CustomException;
 import com.furniro.AuthService.mapper.UserMapper;
+import com.furniro.AuthService.service.other.KafkaProducer;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +27,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final UserMapper userMapper;
+    private final KafkaProducer producer;
 
     public ResponseEntity<AType> getUserById(Integer id) {
         // 1. check user existed
@@ -54,6 +59,13 @@ public class UserService {
         userMapper.updateUserFromReq(req, user);
 
         account.setUserName(req.getUsername());
+
+        
+
+        // 3. emit kafka event : upload.active
+        Map<String, Object> message = new HashMap<>();
+        message.put("fileID", req.getAvatarID());
+        producer.send("upload.active", message);
         // 3. save user
         userRepository.save(user);
         accountRepository.save(account);
