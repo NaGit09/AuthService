@@ -7,7 +7,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.furniro.AuthService.util.enums.Gender;
 
 @Entity
@@ -30,7 +29,7 @@ public class User {
 
     @Column(length = 50, nullable = false)
     @Builder.Default
-    private String avatarID = "DEFAULT_AVATAR";
+    private Integer avatarID = 1;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
@@ -45,6 +44,5 @@ public class User {
     private Account account;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    @JsonManagedReference
     private List<Address> addresses;
 }

@@ -13,6 +13,8 @@ public class ChangePasswordReq {
 
     private String email;
 
+    private String resetToken;
+
     @NotBlank(message = "Password cannot be blank")
     @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
 

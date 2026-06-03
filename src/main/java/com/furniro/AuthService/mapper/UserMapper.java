@@ -11,5 +11,6 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 public interface UserMapper {
     @Mapping(target = "account", ignore = true)
     @Mapping(target = "addresses", ignore = true)
+
     void updateUserFromReq(UserReq req, @MappingTarget User user);
 }

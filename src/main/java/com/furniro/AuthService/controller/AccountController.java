@@ -69,21 +69,34 @@ public class AccountController {
 
     // API require bearer token
     @PostMapping("/logout")
-    public ResponseEntity<AType> logout(Authentication authentication) {
+    public ResponseEntity<AType> logout(
+
+        Authentication authentication) {
+
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
-            return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
+
+            return ResponseEntity.status(401)
+                    .body(ErrorType.unauthorized("Unauthorized"));
         }
+
         String token = jwtAuth.getToken().getTokenValue();
+
         return accountService.logoutAccount(token);
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<AType> refreshToken(
+
             Authentication authentication) {
+
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
-            return ResponseEntity.status(401).body(ErrorType.unauthorized("Unauthorized"));
+
+            return ResponseEntity.status(401)
+                    .body(ErrorType.unauthorized("Unauthorized"));
         }
+
         String refreshToken = jwtAuth.getToken().getTokenValue();
+        
         return accountService.refreshToken(refreshToken);
     }
 }

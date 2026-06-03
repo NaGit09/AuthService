@@ -24,35 +24,39 @@ public class AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
 
-    public Address createAddress(User user) {
-
-        Address address = Address.builder()
-                .user(user)
-                .build();
-        
-        addressRepository.save(address);
-
-        return address;
-    }
-
     public ResponseEntity<AType> updateAddress
     (@NonNull AddressReq updateAddressReq) {
         // 1. Check user exist
         User user = userRepository.findById(updateAddressReq.getUserID())
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("User not found !")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                        .notFound("User not found !")));
 
-        // 2. Check address exist
-        Address address = addressRepository.findById(updateAddressReq.getAddressID())
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
+        // 2. Create or Update address
+        Address address;
+        if (updateAddressReq.getAddressID() == null) {
+            address = new Address();
+        } else {
+            address = addressRepository.findById(updateAddressReq.getAddressID())
+                    .orElseThrow(() -> new CustomException(ErrorType
+                            .notFound("Address not found !")));
+        }
 
         address.setAddressType(updateAddressReq.getAddressType());  
+
         address.setProvince(updateAddressReq.getProvince());
+
         address.setDistrict(updateAddressReq.getDistrict());
+
         address.setWard(updateAddressReq.getWard());
+
         address.setStreet(updateAddressReq.getStreet());
+
         address.setReceiverName(updateAddressReq.getReceiverName());
+
         address.setReceiverPhone(updateAddressReq.getReceiverPhone());
+
         address.setIsDefault(updateAddressReq.getIsDefault());
+
         // 3. Update address
         address.setUser(user);
 
@@ -60,42 +64,52 @@ public class AddressService {
         addressRepository.save(address);
 
         // 5. Return response
-        return ResponseEntity.ok(ApiType.success(address, "Address updated successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(address, "Address updated successfully"));
     }
     
     public ResponseEntity<AType> deleteAddress
     (@NonNull Integer addressID) {
         // 1. Check address exist
         Address address = addressRepository.findById(addressID)
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                    .notFound("Address not found !")));
         
         // 2. Delete address
         addressRepository.delete(address);
         
         // 3. Return response
-        return ResponseEntity.ok(ApiType.success(null, "Address deleted successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(null, "Address deleted successfully"));
     }
 
     public ResponseEntity<AType> getAddress
     (@NonNull Integer addressID) {
         // 1. Check address exist
         Address address = addressRepository.findById(addressID)
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Address not found !")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                    .notFound("Address not found !")));
         
         // 2. Return response
-        return ResponseEntity.ok(ApiType.success(address, "Address found successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(address, "Address found successfully"));
     }
 
     public ResponseEntity<AType> getAddressByUser
     (@NonNull Integer userID) {
         // 1. Check user exist
         User user = userRepository.findById(userID)
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("User not found !")));
+                .orElseThrow(() -> new CustomException(ErrorType
+                    .notFound("User not found !")));
         
         // 2. Get address by user
-        List<Address> addresses = addressRepository.findByUser(user).stream().toList();
+        List<Address> addresses = addressRepository
+                                    .findByUser(user)
+                                    .stream()
+                                    .toList();
         
         // 3. Return response
-        return ResponseEntity.ok(ApiType.success(addresses, "Address found successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(addresses, "Address found successfully"));
     }
 }

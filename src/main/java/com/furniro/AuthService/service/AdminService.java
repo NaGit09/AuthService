@@ -1,6 +1,7 @@
 package com.furniro.AuthService.service;
 
 import com.furniro.AuthService.database.entity.Account;
+import com.furniro.AuthService.database.entity.User;
 import com.furniro.AuthService.database.repository.AccountRepository;
 import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
@@ -49,63 +50,66 @@ public class AdminService {
         long count = accountRepository.countByAccountIDIn(accountIDs);
 
         if (count == 0) {
-            throw new CustomException(ErrorType.notFound("Account not found !"));
+            throw new CustomException(ErrorType
+                    .notFound("Account not found !"));
         }
 
         // 2. Execute update logic
         int result = updateLogic.getAsInt();
 
         if (result == 0) {
-            throw new CustomException(ErrorType.notFound("Account not found !"));
+            throw new CustomException(ErrorType
+                    .notFound("Account not found !"));
         }
 
         // 3. Return data with ApiType format
         String message = successMessage + " for " + result + "/" + accountIDs.size() + " account";
+
         log.info("Message: {}", message);
+
         return ResponseEntity.ok(ApiType.success(true, message));
     }
 
-    public ResponseEntity<AType> resetPassword
-            (@NotEmpty List<Integer> ids) {
+    public ResponseEntity<AType> resetPassword(@NotEmpty List<Integer> ids) {
+
         String hashPassword = passwordEncoder.encode("furniro2026");
 
         return executeBulkUpdate(
                 ids,
                 "Reset password",
-                () -> accountRepository.resetPasswords(ids, hashPassword)
-        );
+                () -> accountRepository.resetPasswords(ids, hashPassword));
     }
 
-    public ResponseEntity<AType> banAccount
-            (@NotEmpty List<Integer> ids) {
+    public ResponseEntity<AType> banAccount(@NotEmpty List<Integer> ids) {
         return executeBulkUpdate(
                 ids,
                 "Ban account",
-                () -> accountRepository.banAccounts(ids)
-        );
+                () -> accountRepository.banAccounts(ids));
     }
 
-    public ResponseEntity<AType> unbanAccount
-            (@NotEmpty List<Integer> ids) {
+    public ResponseEntity<AType> unbanAccount(@NotEmpty List<Integer> ids) {
         return executeBulkUpdate(
                 ids,
                 "Unban account",
-                () -> accountRepository.unbanAccounts(ids)
-        );
+                () -> accountRepository.unbanAccounts(ids));
     }
 
     @Transactional
-    public ResponseEntity<AType> deleteAccount
-            (@NotEmpty List<Integer> ids) {
+    public ResponseEntity<AType> deleteAccount(@NotEmpty List<Integer> ids) {
+
         List<Account> accounts = accountRepository.findAllById(ids);
+
         if (accounts.isEmpty()) {
-            throw new CustomException(ErrorType.notFound("Account not found !"));
+            throw new CustomException(ErrorType
+                    .notFound("Account not found !"));
         }
 
         accountRepository.deleteAll(accounts);
 
         String message = "Delete account for " + accounts.size() + "/" + ids.size() + " account";
+
         log.info("Message: {}", message);
+
         return ResponseEntity.ok(ApiType.success(true, message));
     }
 
@@ -121,36 +125,117 @@ public class AdminService {
         Page<Account> getAccounts = accountRepository.findAll(pageable);
 
         if (getAccounts.isEmpty()) {
-            throw new CustomException(ErrorType.notFound("Account not found !"));
+            throw new CustomException(ErrorType
+                    .notFound("Account not found !"));
         }
 
-        // Map to AccountDetailsRes which matches the structure of LoginRes without tokens
+        // Map to AccountDetailsRes which matches the structure of LoginRes without
+        // tokens
         Page<AccountDetailsRes> getAccountsRes = getAccounts.map(account -> {
-            var user = account.getUser();
+
+            User user = account.getUser();
+
             return AccountDetailsRes.builder()
+
                     .AccountID(account.getAccountID())
+
                     .UserName(account.getUserName())
+
                     .Email(account.getEmail())
+
                     .Phone(account.getPhone())
+
                     .Role(account.getRole())
+
                     .Active(account.getActive())
+
                     .Banned(account.getBanned())
+
                     .FirstName(user != null ? user.getFirstName() : null)
+
                     .LastName(user != null ? user.getLastName() : null)
+
                     .AvatarUrl(user != null ? user.getAvatar() : null)
+
                     .build();
         });
 
         // 3. Return data with ApiType format
-        return ResponseEntity.ok(ApiType.success(getAccountsRes, "Get all accounts successfully"));
+        return ResponseEntity.ok(ApiType
+                .success(getAccountsRes, "Get all accounts successfully"));
     }
 
+<<<<<<< HEAD
     public AType addAccount(AddAccountReq addAccountReq) {
+=======
+    public ResponseEntity<AType> addAccount(AddAccountReq addAccountReq) {
+
+        if (accountRepository.existsByEmail(addAccountReq.getEmail())) {
+            throw new CustomException(ErrorType
+                    .badRequest("Email already exists !"));
+        }
+
+        if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
+            throw new CustomException(ErrorType
+                    .badRequest("Username already exists !"));
+        }
+        String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
+
+        Account account = Account.builder()
+
+                .userName(addAccountReq.getUserName())
+
+                .email(addAccountReq.getEmail())
+
+                .phone(addAccountReq.getPhone())
+
+                .passwordHash(passwordHash)
+
+                .loginType(LoginType.NORMAL)
+
+                .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
+
+                .active(true)
+
+                .banned(false)
+
+                .isDeleted(false)
+
+                .build();
+
+        Account savedAccount = accountRepository.save(account);
+
+        log.info("Add account successfully: accountID={}, userName={}",
+                savedAccount.getAccountID(),
+                savedAccount.getUserName());
+
+        AccountRes response = AccountRes.builder()
+
+                .accountID(savedAccount.getAccountID())
+
+                .userName(savedAccount.getUserName())
+
+                .email(savedAccount.getEmail())
+
+                .phone(savedAccount.getPhone())
+
+                .role(savedAccount.getRole())
+
+                .active(savedAccount.getActive())
+
+                .banned(savedAccount.getBanned())
+
+                .build();
+
+        return ResponseEntity.ok(ApiType
+                .success(response, "Add account successfully"));
+>>>>>>> e5656257d32925f0d35aa8906d677fdb8f1a74fb
 
     if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
         throw new CustomException(ErrorType.badRequest("Username already exists !"));
     }
 
+<<<<<<< HEAD
     String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
 
     Account account = Account.builder()
@@ -248,4 +333,12 @@ public class AdminService {
     return ApiType.success(response, "Add accounts completed");
 }
 
+=======
+    public ResponseEntity<AType> getTotalAccount() {
+        
+        Long total = accountRepository.count();
+
+        return ResponseEntity.ok(ApiType.success(total));
+    }
+>>>>>>> e5656257d32925f0d35aa8906d677fdb8f1a74fb
 }
