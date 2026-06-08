@@ -74,6 +74,8 @@ public class JWTService {
         try {
             token = Jwts.builder()
                     .subject(account.getUserName())
+                    .claim("userID", account.getUser().getUserID())
+                    .claim("accountID", account.getAccountID())
                     .claim("role", account.getRole())
                     .claim("type", tokenType)
                     .id(UUID.randomUUID().toString())

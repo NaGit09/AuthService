@@ -165,77 +165,12 @@ public class AdminService {
                 .success(getAccountsRes, "Get all accounts successfully"));
     }
 
-<<<<<<< HEAD
     public AType addAccount(AddAccountReq addAccountReq) {
-=======
-    public ResponseEntity<AType> addAccount(AddAccountReq addAccountReq) {
-
-        if (accountRepository.existsByEmail(addAccountReq.getEmail())) {
-            throw new CustomException(ErrorType
-                    .badRequest("Email already exists !"));
-        }
-
-        if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
-            throw new CustomException(ErrorType
-                    .badRequest("Username already exists !"));
-        }
-        String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
-
-        Account account = Account.builder()
-
-                .userName(addAccountReq.getUserName())
-
-                .email(addAccountReq.getEmail())
-
-                .phone(addAccountReq.getPhone())
-
-                .passwordHash(passwordHash)
-
-                .loginType(LoginType.NORMAL)
-
-                .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
-
-                .active(true)
-
-                .banned(false)
-
-                .isDeleted(false)
-
-                .build();
-
-        Account savedAccount = accountRepository.save(account);
-
-        log.info("Add account successfully: accountID={}, userName={}",
-                savedAccount.getAccountID(),
-                savedAccount.getUserName());
-
-        AccountRes response = AccountRes.builder()
-
-                .accountID(savedAccount.getAccountID())
-
-                .userName(savedAccount.getUserName())
-
-                .email(savedAccount.getEmail())
-
-                .phone(savedAccount.getPhone())
-
-                .role(savedAccount.getRole())
-
-                .active(savedAccount.getActive())
-
-                .banned(savedAccount.getBanned())
-
-                .build();
-
-        return ResponseEntity.ok(ApiType
-                .success(response, "Add account successfully"));
->>>>>>> e5656257d32925f0d35aa8906d677fdb8f1a74fb
 
     if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
         throw new CustomException(ErrorType.badRequest("Username already exists !"));
     }
 
-<<<<<<< HEAD
     String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
 
     Account account = Account.builder()
@@ -333,12 +268,10 @@ public class AdminService {
     return ApiType.success(response, "Add accounts completed");
 }
 
-=======
     public ResponseEntity<AType> getTotalAccount() {
         
         Long total = accountRepository.count();
 
         return ResponseEntity.ok(ApiType.success(total));
     }
->>>>>>> e5656257d32925f0d35aa8906d677fdb8f1a74fb
 }

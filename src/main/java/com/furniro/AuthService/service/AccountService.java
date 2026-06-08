@@ -147,42 +147,41 @@ public class AccountService {
     }
 
     public ResponseEntity<AType> loginByEmail(@NonNull LoginReq loginReq) {
-    Account account = accountRepository.findByEmail(loginReq.getEmail())
-            .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+        Account account = accountRepository.findByEmail(loginReq.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
-    validateLoginAccount(account, loginReq.getPassword());
+        validateLoginAccount(account, loginReq.getPassword());
 
-    LoginRes res = generateLoginResponse(account);
+        LoginRes res = generateLoginResponse(account);
 
-    return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
     }
 
     public ResponseEntity<AType> loginByUsername(@NonNull LoginByUsernameReq req) {
-    Account account = accountRepository.findByUserName(req.getUserName())
-            .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+        Account account = accountRepository.findByUserName(req.getUserName())
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
-     validateLoginAccount(account, req.getPassword());
+        validateLoginAccount(account, req.getPassword());
 
-    LoginRes res = generateLoginResponse(account);
+        LoginRes res = generateLoginResponse(account);
 
-    return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+    }
+
+    private void validateLoginAccount(Account account, String rawPassword) {
+        if (Boolean.FALSE.equals(account.getActive())) {
+            throw new CustomException(ErrorType.badRequest("Account is not active"));
         }
 
-        private void validateLoginAccount(Account account, String rawPassword) {
-    if (Boolean.FALSE.equals(account.getActive())) {
-        throw new CustomException(ErrorType.badRequest("Account is not active"));
+        if (Boolean.TRUE.equals(account.getBanned())) {
+            throw new CustomException(ErrorType.badRequest("Account is banned"));
+        }
+
+        if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
+            throw new CustomException(ErrorType.badRequest("Invalid password"));
+        }
+
     }
-
-    if (Boolean.TRUE.equals(account.getBanned())) {
-        throw new CustomException(ErrorType.badRequest("Account is banned"));
-    }
-
-    if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
-        throw new CustomException(ErrorType.badRequest("Invalid password"));
-    }
-
-
-}
 
     private LoginRes generateLoginResponse(Account account) {
         // 1. Sign access token
