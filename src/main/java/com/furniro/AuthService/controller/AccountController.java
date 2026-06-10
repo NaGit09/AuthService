@@ -14,6 +14,7 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
+import com.furniro.AuthService.dto.req.LoginByUsernameReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.service.AccountService;
@@ -39,9 +40,12 @@ public class AccountController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AType> login
-        (@RequestBody LoginReq loginReq) {
-        return accountService.loginAccount(loginReq);
+    public ResponseEntity<AType> login(@RequestBody LoginReq loginReq) {
+        return accountService.loginByEmail(loginReq);
+    }
+    @PostMapping("/login-by-username")
+    public ResponseEntity<AType> loginByUsername(@RequestBody LoginByUsernameReq loginReq) {
+        return accountService.loginByUsername(loginReq);
     }
 
     @PostMapping("/send-otp")

@@ -27,7 +27,7 @@ public class Account {
     @Column(unique = true, nullable = false, length = 50, name = "UserName")
     private String userName;
 
-    @Column(unique = true, nullable = false, length = 150)
+    @Column(unique = true, nullable = true, length = 150)
     private String email;
 
     @Column(length = 20)

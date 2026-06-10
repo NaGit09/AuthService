@@ -7,8 +7,11 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.AddAccountReq;
+import com.furniro.AuthService.dto.req.AddAccountsReq;
 import com.furniro.AuthService.dto.res.AccountDetailsRes;
 import com.furniro.AuthService.dto.res.AccountRes;
+import com.furniro.AuthService.dto.res.AddAccountErrorRes;
+import com.furniro.AuthService.dto.res.AddAccountsRes;
 import com.furniro.AuthService.exception.CustomException;
 import com.furniro.AuthService.util.enums.LoginType;
 import com.furniro.AuthService.util.enums.Role;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntSupplier;
 
@@ -161,69 +165,108 @@ public class AdminService {
                 .success(getAccountsRes, "Get all accounts successfully"));
     }
 
-    public ResponseEntity<AType> addAccount(AddAccountReq addAccountReq) {
+    public AType addAccount(AddAccountReq addAccountReq) {
 
-        if (accountRepository.existsByEmail(addAccountReq.getEmail())) {
-            throw new CustomException(ErrorType
-                    .badRequest("Email already exists !"));
-        }
-
-        if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
-            throw new CustomException(ErrorType
-                    .badRequest("Username already exists !"));
-        }
-        String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
-
-        Account account = Account.builder()
-
-                .userName(addAccountReq.getUserName())
-
-                .email(addAccountReq.getEmail())
-
-                .phone(addAccountReq.getPhone())
-
-                .passwordHash(passwordHash)
-
-                .loginType(LoginType.NORMAL)
-
-                .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
-
-                .active(true)
-
-                .banned(false)
-
-                .isDeleted(false)
-
-                .build();
-
-        Account savedAccount = accountRepository.save(account);
-
-        log.info("Add account successfully: accountID={}, userName={}",
-                savedAccount.getAccountID(),
-                savedAccount.getUserName());
-
-        AccountRes response = AccountRes.builder()
-
-                .accountID(savedAccount.getAccountID())
-
-                .userName(savedAccount.getUserName())
-
-                .email(savedAccount.getEmail())
-
-                .phone(savedAccount.getPhone())
-
-                .role(savedAccount.getRole())
-
-                .active(savedAccount.getActive())
-
-                .banned(savedAccount.getBanned())
-
-                .build();
-
-        return ResponseEntity.ok(ApiType
-                .success(response, "Add account successfully"));
-
+    if (accountRepository.existsByUserName(addAccountReq.getUserName())) {
+        throw new CustomException(ErrorType.badRequest("Username already exists !"));
     }
+
+    String passwordHash = passwordEncoder.encode(addAccountReq.getPassword());
+
+    Account account = Account.builder()
+            .userName(addAccountReq.getUserName())
+            .passwordHash(passwordHash)
+            .loginType(LoginType.NORMAL)
+            .role(addAccountReq.getRole() != null ? addAccountReq.getRole() : Role.CUSTOMER)
+            .active(true)
+            .banned(false)
+            .isDeleted(false)
+            .build();
+
+    Account savedAccount = accountRepository.save(account);
+
+    log.info("Add account successfully: accountID={}, userName={}",
+            savedAccount.getAccountID(),
+            savedAccount.getUserName()
+    );
+
+    AccountRes response = AccountRes.builder()
+            .accountID(savedAccount.getAccountID())
+            .userName(savedAccount.getUserName())
+            .role(savedAccount.getRole())
+            .active(savedAccount.getActive())
+            .banned(savedAccount.getBanned())
+            .build();
+
+    return ApiType.success(response, "Add account successfully");
+    }
+
+    public AType addMultiAccounts(AddAccountsReq request) {
+
+    List<AccountRes> successAccounts = new ArrayList<>();
+    List<AddAccountErrorRes> errors = new ArrayList<>();
+
+    List<AddAccountReq> accounts = request.getAccounts();
+
+    for (int i = 0; i < accounts.size(); i++) {
+        AddAccountReq item = accounts.get(i);
+
+        try {
+         
+            if (accountRepository.existsByUserName(item.getUserName())) {
+                errors.add(AddAccountErrorRes.builder()
+                        .index(i)
+                        .userName(item.getUserName())
+                        .reason("Username already exists")
+                        .build());
+                continue;
+            }
+
+            String passwordHash = passwordEncoder.encode(item.getPassword());
+
+            Account account = Account.builder()
+                    .userName(item.getUserName())
+                    .passwordHash(passwordHash)
+                    .loginType(LoginType.NORMAL)
+                    .role(item.getRole() != null ? item.getRole() : Role.CUSTOMER)
+                    .active(true)
+                    .banned(false)
+                    .isDeleted(false)
+                    .build();
+
+            Account savedAccount = accountRepository.save(account);
+
+            AccountRes response = AccountRes.builder()
+                    .accountID(savedAccount.getAccountID())
+                    .userName(savedAccount.getUserName())
+                    .email(savedAccount.getEmail())
+                    .phone(savedAccount.getPhone())
+                    .role(savedAccount.getRole())
+                    .active(savedAccount.getActive())
+                    .banned(savedAccount.getBanned())
+                    .build();
+
+            successAccounts.add(response);
+
+        } catch (Exception e) {
+            errors.add(AddAccountErrorRes.builder()
+                    .index(i)
+                    .userName(item.getUserName())
+                    .reason(e.getMessage())
+                    .build());
+        }
+    }
+
+    AddAccountsRes response = AddAccountsRes.builder()
+            .total(accounts.size())
+            .successCount(successAccounts.size())
+            .failedCount(errors.size())
+            .successAccounts(successAccounts)
+            .errors(errors)
+            .build();
+
+    return ApiType.success(response, "Add accounts completed");
+}
 
     public ResponseEntity<AType> getTotalAccount() {
         
