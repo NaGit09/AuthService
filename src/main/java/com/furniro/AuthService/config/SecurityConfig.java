@@ -144,10 +144,25 @@ public class SecurityConfig {
 
     @Bean
     WebSecurityCustomizer webSecurityCustomizer() {
-
         return (web) -> web.ignoring()
-
-                .requestMatchers("/error");
+                .requestMatchers(
+                        "/account/login",
+                        "/account/login-by-username",
+                        "/account/register",
+                        "/account/send-otp",
+                        "/account/confirm-otp",
+                        "/account/change-password",
+                        "/account/confirm/**",
+                        "/account/active",
+                        "/error",
+                        "/v3/api-docs/**",
+                        "/v3/api-docs.yaml",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/webjars/**",
+                        "/swagger-resources/**",
+                        "/actuator/**"
+                );
     }
 
 }
