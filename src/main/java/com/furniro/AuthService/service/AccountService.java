@@ -187,15 +187,53 @@ public class AccountService {
         return ResponseEntity.ok(ApiType.success(res, "Login successful"));
     }
 
-    public ResponseEntity<AType> loginByUsername(@NonNull LoginByUsernameReq req) {
-        Account account = accountRepository.findByUserName(req.getUserName())
+    private void validateLoginAccount(Account account, String rawPassword) {
+        if (Boolean.FALSE.equals(account.getActive())) {
+            throw new CustomException(ErrorType.badRequest("Account is not active"));
+        }
+
+        if (Boolean.TRUE.equals(account.getBanned())) {
+            throw new CustomException(ErrorType.badRequest("Account is banned"));
+        }
+
+        if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
+            throw new CustomException(ErrorType.badRequest("Invalid password"));
+        }
+
+    }
+
+    private LoginRes generateLoginResponse(Account account) {
+        // 1. Sign access token
+        String accessToken = jwtService.generateToken(account, "ACCESS");
+
+        // 2. Sign refresh token
+        String refreshToken = jwtService.generateToken(account, "REFRESH");
+
+        // 3. Get user info in DB
+        User user = userRepository.findByAccount(account)
                 .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
 
-        validateLoginAccount(account, req.getPassword());
+        // 5. Return data for client
+        return authMapper.toLoginRes(account, user, accessToken, refreshToken);
+    }
 
-        LoginRes res = generateLoginResponse(account);
+    public ResponseEntity<AType> logoutAccount(@NonNull String token) {
+        boolean isValid = jwtService.validateToken(token, "REFRESH");
+        if (!isValid) {
+            throw new CustomException(ErrorType.badRequest("Invalid or already expired token"));
+        }
 
-        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
+        String tokenId = jwtService.extractTokenId(token);
+        Date expiration = jwtService.extractExpiration(token);
+        long remainingTimeMs = expiration.getTime() - System.currentTimeMillis();
+
+        if (remainingTimeMs > 0) {
+            String blacklistKey = "BLACKLISTED_TOKEN:" + tokenId;
+            redisService.addData(blacklistKey, "true", remainingTimeMs, TimeUnit.MILLISECONDS);
+        }
+
+        return ResponseEntity.ok(ApiType.success(true, "Logout successful"));
+
     }
 
     public ResponseEntity<AType> sendOTP(@NonNull String email) {

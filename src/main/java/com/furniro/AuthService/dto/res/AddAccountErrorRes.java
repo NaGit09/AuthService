@@ -9,6 +9,5 @@ public class AddAccountErrorRes {
 
     private Integer index;
     private String userName;
-    private String email;
     private String reason;
 }
