@@ -57,41 +57,6 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final AuthMapper authMapper;
 
-    public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
-        if (accountRepository.existsByEmail(email)) {
-            throw new CustomException(ErrorType
-                    .badRequest("Email already exists"));
-        }
-        return ResponseEntity.ok(ApiType.success(true));
-    }
-
-    @Transactional
-    public ResponseEntity<AType> registerAccount(@NonNull RegisterReq registerReq) {
-
-        String encodedPassword = passwordEncoder.encode(registerReq.getPassword());
-
-        Account account = saveAccountAndProfile(registerReq, encodedPassword);
-
-        Map<String, Object> message = new HashMap<>();
-        message.put("firstName", registerReq.getFirstName());
-        message.put("lastName", registerReq.getLastName());
-        message.put("accountID", account.getAccountID());
-        message.put("email", registerReq.getEmail());
-
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        kafkaProducer.send("auth.send.active", message);
-                    }
-                });
-
-        LoginRes loginRes = generateLoginResponse(account);
-
-        return ResponseEntity.ok(ApiType
-                .success(loginRes, "Registration successful."));
-    }
-
     @Transactional
     public Account saveAccountAndProfile(RegisterReq registerReq, String encodedPassword) {
 
@@ -125,6 +90,71 @@ public class AccountService {
         addressRepository.save(address);
 
         return account;
+    }
+
+    private void validateLoginAccount(Account account, String rawPassword) {
+        if (Boolean.FALSE.equals(account.getActive())) {
+            throw new CustomException(ErrorType.badRequest("Account is not active"));
+        }
+
+        if (Boolean.TRUE.equals(account.getBanned())) {
+            throw new CustomException(ErrorType.badRequest("Account is banned"));
+        }
+
+        if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
+            throw new CustomException(ErrorType.badRequest("Invalid password"));
+        }
+
+    }
+
+    private LoginRes generateLoginResponse(Account account) {
+        // 1. Sign access token
+        String accessToken = jwtService.generateToken(account, "ACCESS");
+
+        // 2. Sign refresh token
+        String refreshToken = jwtService.generateToken(account, "REFRESH");
+
+        // 3. Get user info in DB
+        User user = userRepository.findByAccount(account)
+                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
+
+        // 5. Return data for client
+        return authMapper.toLoginRes(account, user, accessToken, refreshToken);
+    }
+
+    public ResponseEntity<AType> checkEmailExisted(@NonNull String email) {
+        if (accountRepository.existsByEmail(email)) {
+            throw new CustomException(ErrorType
+                    .badRequest("Email already exists"));
+        }
+        return ResponseEntity.ok(ApiType.success(true));
+    }
+
+    @Transactional
+    public ResponseEntity<AType> registerAccount(@NonNull RegisterReq registerReq) {
+
+        String encodedPassword = passwordEncoder.encode(registerReq.getPassword());
+
+        Account account = saveAccountAndProfile(registerReq, encodedPassword);
+
+        Map<String, Object> message = new HashMap<>();
+        message.put("firstName", registerReq.getFirstName());
+        message.put("lastName", registerReq.getLastName());
+        message.put("accountID", account.getAccountID());
+        message.put("email", registerReq.getEmail());
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        kafkaProducer.send("auth.send.active", message);
+                    }
+                });
+
+        LoginRes loginRes = generateLoginResponse(account);
+
+        return ResponseEntity.ok(ApiType
+                .success(loginRes, "Registration successful."));
     }
 
     public ResponseEntity<AType> activeAccount(@NonNull Integer accountID) {
@@ -203,6 +233,7 @@ public class AccountService {
         }
 
         return ResponseEntity.ok(ApiType.success(true, "Logout successful"));
+
     }
 
     public ResponseEntity<AType> sendOTP(@NonNull String email) {
@@ -314,6 +345,13 @@ public class AccountService {
             throw new CustomException(ErrorType
                     .badRequest("Invalid token"));
         }
+        // 1.1 check refresh token exist in blacklist
+        String tokenBlack = "BLACKLISTED_TOKEN:" + jwtService.extractTokenId(token);
+
+        if (redisService.getData(tokenBlack) != null) {
+            throw new CustomException(ErrorType
+                    .badRequest("Token has been blacklisted, please login again"));
+        }
 
         String username = jwtService.extractUsername(token);
 
@@ -327,4 +365,36 @@ public class AccountService {
         return ResponseEntity.ok(ApiType.success(accessToken));
     }
 
+    public ResponseEntity<AType> logoutAccount(@NonNull String accessToken, @NonNull String refreshToken) {
+
+        // 1. Validate and blacklist the Refresh Token
+        boolean isRefreshValid = jwtService.validateToken(refreshToken, "REFRESH");
+        if (!isRefreshValid) {
+            throw new CustomException(ErrorType.badRequest("Invalid or already expired refresh token"));
+        }
+
+        String refreshId = jwtService.extractTokenId(refreshToken);
+        Date refreshExp = jwtService.extractExpiration(refreshToken);
+        long refreshRemaining = refreshExp.getTime() - System.currentTimeMillis();
+
+        if (refreshRemaining > 0) {
+            String blacklistKey = "BLACKLISTED_TOKEN:" + refreshId;
+            redisService.addData(blacklistKey, "true", refreshRemaining, TimeUnit.MILLISECONDS);
+        }
+
+        // 2. Validate and blacklist the Access Token
+        boolean isAccessValid = jwtService.validateToken(accessToken, "ACCESS");
+        if (isAccessValid) {
+            String accessId = jwtService.extractTokenId(accessToken);
+            Date accessExp = jwtService.extractExpiration(accessToken);
+            long accessRemaining = accessExp.getTime() - System.currentTimeMillis();
+
+            if (accessRemaining > 0) {
+                String blacklistKey = "BLACKLISTED_TOKEN:" + accessId;
+                redisService.addData(blacklistKey, "true", accessRemaining, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        return ResponseEntity.ok(ApiType.success(true, "Logout successful"));
+    }
 }
