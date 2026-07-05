@@ -29,13 +29,13 @@ public class AccountController {
 
     @PostMapping("/register")
     public ResponseEntity<AType> register(
-        @RequestBody RegisterReq registerReq) {
+            @RequestBody RegisterReq registerReq) {
         return accountService.registerAccount(registerReq);
     }
 
     @GetMapping("/active")
     public ResponseEntity<AType> activeAccount(
-        @RequestParam("id") Integer accountID) {
+            @RequestParam("id") Integer accountID) {
         return accountService.activeAccount(accountID);
     }
 
@@ -43,27 +43,20 @@ public class AccountController {
     public ResponseEntity<AType> login(@RequestBody LoginReq loginReq) {
         return accountService.loginByEmail(loginReq);
     }
-    @PostMapping("/login-by-username")
-    public ResponseEntity<AType> loginByUsername(@RequestBody LoginByUsernameReq loginReq) {
-        return accountService.loginByUsername(loginReq);
-    }
 
     @PostMapping("/send-otp")
-    public ResponseEntity<AType> sendOTP
-        (@RequestBody Map<String, String> request) {
+    public ResponseEntity<AType> sendOTP(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         return accountService.sendOTP(email);
     }
 
     @PostMapping("/confirm-otp")
-    public ResponseEntity<AType> confirmOTP
-        (@RequestBody ConfirmOTPReq confirmOTPReq) {
+    public ResponseEntity<AType> confirmOTP(@RequestBody ConfirmOTPReq confirmOTPReq) {
         return accountService.confirmOTP(confirmOTPReq);
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<AType> changePassword
-        (@RequestBody ChangePasswordReq changePasswordReq) {
+    public ResponseEntity<AType> changePassword(@RequestBody ChangePasswordReq changePasswordReq) {
         return accountService.changePassword(changePasswordReq);
     }
 
@@ -71,7 +64,7 @@ public class AccountController {
     @PostMapping("/logout")
     public ResponseEntity<AType> logout(
 
-        Authentication authentication) {
+            Authentication authentication) {
 
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
 
@@ -96,7 +89,7 @@ public class AccountController {
         }
 
         String refreshToken = jwtAuth.getToken().getTokenValue();
-        
+
         return accountService.refreshToken(refreshToken);
     }
 }

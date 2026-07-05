@@ -157,17 +157,6 @@ public class AccountService {
         return ResponseEntity.ok(ApiType.success(res, "Login successful"));
     }
 
-    public ResponseEntity<AType> loginByUsername(@NonNull LoginByUsernameReq req) {
-        Account account = accountRepository.findByUserName(req.getUserName())
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
-
-        validateLoginAccount(account, req.getPassword());
-
-        LoginRes res = generateLoginResponse(account);
-
-        return ResponseEntity.ok(ApiType.success(res, "Login successful"));
-    }
-
     private void validateLoginAccount(Account account, String rawPassword) {
         if (Boolean.FALSE.equals(account.getActive())) {
             throw new CustomException(ErrorType.badRequest("Account is not active"));
