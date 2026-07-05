@@ -92,6 +92,7 @@ public class JWTService {
 
     public boolean validateToken(String token, String tokenType) {
         try {
+            
             Claims claims = extractAllClaims(token);
             String tokenId = claims.getId();
 
@@ -100,7 +101,9 @@ public class JWTService {
                 return false;
             }
 
-            boolean isCorrectType = claims.get("type", String.class).equalsIgnoreCase(tokenType);
+            boolean isCorrectType = claims.get("type", String.class)
+                    .equalsIgnoreCase(tokenType);
+
             boolean isNotExpired = !claims.getExpiration().before(new Date());
 
             return isCorrectType && isNotExpired;
@@ -118,10 +121,10 @@ public class JWTService {
     }
 
     public String extractTokenId(String token) {
-        return extractClaim(token, Claims::getId);
+        return extractClaim(token, (Claims claims) -> claims.getId());
     }
 
     public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+        return extractClaim(token, (Claims claims) -> claims.getExpiration());
     }
 }

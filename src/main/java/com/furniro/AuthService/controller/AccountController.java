@@ -16,8 +16,10 @@ import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
 import com.furniro.AuthService.dto.req.LoginByUsernameReq;
 import com.furniro.AuthService.dto.req.LoginReq;
+import com.furniro.AuthService.dto.req.LogoutReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.service.AccountService;
+import jakarta.validation.Valid;
 
 @Slf4j
 @RestController
@@ -70,8 +72,8 @@ public class AccountController {
     // API require bearer token
     @PostMapping("/logout")
     public ResponseEntity<AType> logout(
-
-        Authentication authentication) {
+        Authentication authentication,
+        @RequestBody @Valid LogoutReq logoutReq) {
 
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
 
@@ -79,9 +81,9 @@ public class AccountController {
                     .body(ErrorType.unauthorized("Unauthorized"));
         }
 
-        String token = jwtAuth.getToken().getTokenValue();
+        String accessToken = jwtAuth.getToken().getTokenValue();
 
-        return accountService.logoutAccount(token);
+        return accountService.logoutAccount(accessToken, logoutReq.getRefreshToken());
     }
 
     @PostMapping("/refresh")

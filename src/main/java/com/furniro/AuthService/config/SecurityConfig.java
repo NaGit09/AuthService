@@ -14,16 +14,20 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.furniro.AuthService.service.other.RedisService;
 import com.furniro.AuthService.util.KeyLoader;
 
 import java.security.interfaces.RSAPublicKey;
@@ -35,6 +39,11 @@ import java.util.Collection;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private final RedisService redisService;
+
+    @Value("${auth.jwt.issuer}")
+    private String issuer;
 
     private static final String[] WHITE_LIST_URLS = {
             "/account/login",
@@ -68,7 +77,7 @@ public class SecurityConfig {
     AuthenticationManager authenticationManager(
 
             AuthenticationConfiguration config) throws Exception {
-                
+
         return config.getAuthenticationManager();
     }
 
@@ -79,7 +88,18 @@ public class SecurityConfig {
 
             RSAPublicKey publicKey = KeyLoader.loadPublicKey(publicKeyLocation);
 
-            return NimbusJwtDecoder.withPublicKey(publicKey).build();
+            NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
+
+            OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
+
+            OAuth2TokenValidator<Jwt> blacklistValidator = new JwtBlacklistValidator(redisService);
+
+            OAuth2TokenValidator<Jwt> delegatingValidator = new DelegatingOAuth2TokenValidator<>(withIssuer,
+                    blacklistValidator);
+
+            jwtDecoder.setJwtValidator(delegatingValidator);
+
+            return jwtDecoder;
 
         } catch (Exception e) {
 
@@ -110,9 +130,9 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.disable())
 
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
@@ -161,8 +181,7 @@ public class SecurityConfig {
                         "/swagger-ui.html",
                         "/webjars/**",
                         "/swagger-resources/**",
-                        "/actuator/**"
-                );
+                        "/actuator/**");
     }
 
 }
