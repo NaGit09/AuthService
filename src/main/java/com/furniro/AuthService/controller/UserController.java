@@ -34,7 +34,7 @@ public class UserController {
     }
 
     @PutMapping("/update")
-    @PreAuthorize("hasAuthority('CUSTOMER')")
+    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'ADMIN')")
     public ResponseEntity<AType> updateUserById(@RequestBody UserReq req) {
         return userService.updateUserById(req);
     }

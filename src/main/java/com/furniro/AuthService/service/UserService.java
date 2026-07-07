@@ -19,9 +19,11 @@ import com.furniro.AuthService.mapper.UserMapper;
 import com.furniro.AuthService.service.other.KafkaProducer;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -66,6 +68,7 @@ public class UserService {
         Map<String, Object> message = new HashMap<>();
         message.put("fileID", req.getAvatarID());
         producer.send("upload.active", message);
+        log.info("Emit kafka event : upload.active with message : {}", message);
         // 3. save user
         userRepository.save(user);
         accountRepository.save(account);
