@@ -23,7 +23,6 @@ import com.furniro.AuthService.dto.API.ApiType;
 import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
-import com.furniro.AuthService.dto.req.LoginByUsernameReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
 import com.furniro.AuthService.dto.res.LoginRes;
@@ -185,36 +184,6 @@ public class AccountService {
         LoginRes res = generateLoginResponse(account);
 
         return ResponseEntity.ok(ApiType.success(res, "Login successful"));
-    }
-
-    private void validateLoginAccount(Account account, String rawPassword) {
-        if (Boolean.FALSE.equals(account.getActive())) {
-            throw new CustomException(ErrorType.badRequest("Account is not active"));
-        }
-
-        if (Boolean.TRUE.equals(account.getBanned())) {
-            throw new CustomException(ErrorType.badRequest("Account is banned"));
-        }
-
-        if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
-            throw new CustomException(ErrorType.badRequest("Invalid password"));
-        }
-
-    }
-
-    private LoginRes generateLoginResponse(Account account) {
-        // 1. Sign access token
-        String accessToken = jwtService.generateToken(account, "ACCESS");
-
-        // 2. Sign refresh token
-        String refreshToken = jwtService.generateToken(account, "REFRESH");
-
-        // 3. Get user info in DB
-        User user = userRepository.findByAccount(account)
-                .orElseThrow(() -> new CustomException(ErrorType.notFound("Account not found")));
-
-        // 5. Return data for client
-        return authMapper.toLoginRes(account, user, accessToken, refreshToken);
     }
 
     public ResponseEntity<AType> logoutAccount(@NonNull String token) {

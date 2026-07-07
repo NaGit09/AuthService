@@ -14,7 +14,6 @@ import com.furniro.AuthService.dto.API.AType;
 import com.furniro.AuthService.dto.API.ErrorType;
 import com.furniro.AuthService.dto.req.ChangePasswordReq;
 import com.furniro.AuthService.dto.req.ConfirmOTPReq;
-import com.furniro.AuthService.dto.req.LoginByUsernameReq;
 import com.furniro.AuthService.dto.req.LoginReq;
 import com.furniro.AuthService.dto.req.LogoutReq;
 import com.furniro.AuthService.dto.req.RegisterReq;
