@@ -1,73 +1,262 @@
-# 🔐 Furniro - Authentication & Identity Service
+# 🔐 Furniro — Authentication & Identity Service
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.x-brightgreen?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.5-brightgreen?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.x-blue?logo=mysql&logoColor=white)](https://www.mysql.com)
 [![Redis](https://img.shields.io/badge/Redis-6.x%2B-red?logo=redis&logoColor=white)](https://redis.io)
 [![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-3.x-black?logo=apachekafka&logoColor=white)](https://kafka.apache.org)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-The **Authentication Service** is the central security gateway and identity management hub of the **Furniro E-Commerce Ecosystem**. Built with Spring Boot 3, it provides robust identity verification, secure token-based authentication (RS256 JWT), session caching, Role-Based Access Control (RBAC), and event-driven microservices synchronization.
+> The **Authentication & Identity Service** is the central security gateway of the **Furniro E-Commerce Ecosystem**. It handles user registration, login, token management, OTP-based password recovery, role-based access control, and event-driven synchronization with downstream microservices — all built on **Spring Boot 4.0.5** with **RS256 asymmetric JWT signing**.
 
 ---
 
-## 🏗️ Core Architecture & Flow
+## 📑 Table of Contents
 
-The microservice leverages a decoupled security design. It uses an **asymmetric RS256 algorithm** to sign JSON Web Tokens, enabling downstream services to verify user identity autonomously using only the public key.
+- [Architecture & Flow](#-architecture--flow)
+- [Key Features](#-key-features)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [Data Model](#-data-model)
+- [Security Design](#-security-design)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [API Reference](#-api-reference)
+- [Docker](#-docker)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+
+---
+
+## 🏗️ Architecture & Flow
+
+The service uses a **decoupled asymmetric cryptography design**. The private key (PKCS#8) signs tokens; downstream services verify them independently using only the public key — no round-trip to the auth service required.
 
 ```mermaid
 graph TD
-    Client[Client / Mobile / Web] -->|1. Credentials / OTP| AuthCtrl[AccountController]
-    AuthCtrl -->|2. Validate & Authorize| AuthService[AccountService]
-    
-    subgraph Data & Cache
-        AuthService -->|JPA Queries| DB[(MySQL Database)]
-        AuthService -->|Cache OTP / TTL| Cache[(Redis Cache)]
+    Client["Client (Web / Mobile)"] -->|"① Credentials / OTP"| AC[AccountController]
+    AC -->|"② Validate & Authorize"| AS[AccountService]
+
+    subgraph "Persistence Layer"
+        AS -->|JPA| DB[(MySQL · Account / User / Address)]
+        AS -->|"OTP · Blacklist · Reset tokens"| Cache[(Redis)]
     end
 
-    subgraph Cryptography
-        AuthService -->|Sign RS256 JWT| JWT[JWTService]
-        JWT -->|RSA Keys| Keys[private_key_pkcs8.pem]
+    subgraph "Cryptography"
+        AS -->|"Sign RS256 JWT"| JWT[JWTService]
+        JWT -->|RSA Private Key PKCS8| PK[private_key_pkcs8.pem]
     end
 
-    subgraph Event Broker
-        AuthService -->|Publish Events| Kafka[Kafka Producer]
-        Kafka -->|Topic: auth.send.active| Topics[Active Account Event]
-        Kafka -->|Topic: auth.send.otp| Topics2[OTP Delivery Event]
+    subgraph "Event Broker"
+        AS -->|"afterCommit hook"| KP[KafkaProducer]
+        KP -->|"auth.send.active"| T1["Account Activation Event"]
+        KP -->|"auth.send.otp"| T2["OTP Delivery Event"]
     end
 
-    AuthService -->|3. Access & Refresh Tokens| Client
-    
-    Client -->|4. Bearer Access Token| Gateway[API Gateway / Resource Servers]
-    Gateway -->|5. Verify Signature| Decrypter[NimbusJwtDecoder]
-    Decrypter -->|Local Key Verification| PublicKey[public.pem]
+    AS -->|"③ Access + Refresh Tokens"| Client
+    Client -->|"④ Bearer Access Token"| GW["API Gateway / Resource Servers"]
+    GW -->|"⑤ Verify Signature"| ND[NimbusJwtDecoder]
+    ND -->|"JwtBlacklistValidator (Redis)"| BL[Blacklist Check]
+    ND -->|"RSA Public Key"| PUB[public.pem]
 ```
 
 ---
 
-## 🌟 Key Highlights
+## 🌟 Key Features
 
-- 🔑 **Secure Authentication Flow**: Fully encrypted password storage using `BCryptPasswordEncoder` and custom username generation.
-- 🎟️ **Asymmetric Cryptography**: RS256 (RSA with SHA-256) signature scheme using 2048-bit keys for decoupled, highly scalable downstream verification.
-- 🛡️ **Granular Access Control (RBAC)**: Fine-grained method-level security with `@PreAuthorize` securing endpoints based on `ADMIN` or `CUSTOMER` roles.
-- ⚡ **Redis Session & OTP Engine**: Microsecond-fast caching of One-Time Passwords (OTP) with built-in time-to-live (TTL) expiration.
-- 📡 **Event-Driven Integration**: Publishes system registration and verification events to Apache Kafka topics (`auth.send.active`, `auth.send.otp`) to drive decoupled notification services.
-- 📖 **Self-Documenting API**: Fully integrated OpenAPI 3.0 / Swagger UI for developer-friendly sandbox testing.
+| Feature | Detail |
+|---|---|
+| **RS256 JWT Tokens** | Asymmetric 2048-bit RSA signing — access (1h) & refresh (7d) tokens |
+| **JWT Blacklisting** | On logout, both access and refresh token IDs (`jti`) are stored in Redis with their remaining TTL |
+| **OTP Password Reset** | 6-digit OTP generated, cached in Redis with 5-min TTL, delivered via Kafka (`auth.send.otp`) |
+| **Secure Reset Flow** | On OTP confirmation, a UUID reset token is issued (5-min TTL); password change requires this token |
+| **RBAC** | `CUSTOMER` and `ADMIN` roles enforced via `@PreAuthorize` at method level |
+| **Kafka Events** | Registration and OTP events published after transaction commit via `TransactionSynchronizationManager` |
+| **Actuator** | Health, metrics, and all actuator endpoints exposed for monitoring |
+| **OpenAPI / Swagger** | Interactive API docs auto-generated via Springdoc OpenAPI 3.0 |
+| **Docker** | Multi-stage layered Docker build for minimal image size |
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Component | Technology | Version / Specification |
-| :--- | :--- | :--- |
-| **Framework** | Spring Boot | `3.4.x` (Starter parent) |
+| Layer | Technology | Version |
+|:---|:---|:---|
+| **Framework** | Spring Boot | `4.0.5` |
 | **Runtime** | Java OpenJDK | `17` |
-| **Database** | MySQL | `8.x` / Hibernate JPA |
-| **Cache Store** | Redis | `6.x+` (via Spring Session Data Redis) |
-| **Event Broker** | Apache Kafka | `3.x` (Spring Kafka) |
-| **Security Core** | Spring Security | OAuth2 Resource Server (Nimbus JWT) |
-| **Token Spec** | JSON Web Token | `io.jsonwebtoken (jjwt-api)` `0.13.0` |
-| **JSON Parser** | Jackson | `2.x` |
-| **Utility** | MapStruct / Lombok | `1.6.3` / `1.18.36` |
+| **Database** | MySQL + Spring Data JPA / Hibernate | `8.x` |
+| **Cache / Session** | Redis (Spring Session Data Redis) | `6.x+` |
+| **Message Broker** | Apache Kafka (Spring Kafka) | `3.x` |
+| **Security** | Spring Security + OAuth2 Resource Server | — |
+| **JWT Library** | io.jsonwebtoken (jjwt) | `0.13.0` |
+| **JWT Decoder** | NimbusJwtDecoder + JwtBlacklistValidator | — |
+| **Env Config** | dotenv-java (cdimascio) | `3.2.0` |
+| **Code Gen** | Lombok + MapStruct | `1.18.36` / `1.6.3` |
+| **API Docs** | Springdoc OpenAPI (webmvc-ui) | `3.0.1` |
+| **Observability** | Spring Boot Actuator | — |
+| **Build** | Maven (via Maven Wrapper) | `3.9.9` |
+| **Container** | Docker (multi-stage, Alpine JRE 17) | — |
+
+---
+
+## 📦 Project Structure
+
+```text
+src/main/java/com/furniro/AuthService/
+│
+├── config/
+│   ├── SecurityConfig.java          # Filter chain, JWT decoder, RBAC, whitelist
+│   ├── JwtBlacklistValidator.java   # OAuth2TokenValidator — checks Redis blacklist
+│   ├── KafkaConfig.java             # Kafka producer/consumer bean config
+│   └── OpenApiConfig.java           # Springdoc / Swagger bean config
+│
+├── controller/
+│   ├── AccountController.java       # /account — register, login, OTP, logout, refresh
+│   ├── UserController.java          # /user — profile read & update
+│   ├── AddressController.java       # /address — address read & update
+│   └── AdminController.java         # /admin — admin-only account management
+│
+├── database/
+│   ├── entity/
+│   │   ├── Account.java             # Account: credentials, role, active/banned flags
+│   │   ├── User.java                # User: personal details (name, gender, DOB)
+│   │   └── Address.java             # Shipping/billing address linked to User
+│   └── repository/                  # Spring Data JPA repositories for each entity
+│
+├── dto/
+│   ├── API/                         # AType, ApiType, ErrorType — unified response wrappers
+│   ├── req/                         # Request payloads (RegisterReq, LoginReq, ChangePasswordReq…)
+│   └── res/                         # Response payloads (LoginRes…)
+│
+├── exception/
+│   └── CustomException.java         # Domain exception + global ControllerAdvice handler
+│
+├── mapper/
+│   └── AuthMapper.java              # MapStruct interface — entity <-> DTO mapping
+│
+├── service/
+│   ├── AccountService.java          # Core auth logic: register, login, OTP, logout, refresh
+│   ├── AdminService.java            # Admin operations: ban, unban, reset-password, bulk add
+│   ├── UserService.java             # User profile CRUD
+│   ├── AddressService.java          # Address CRUD
+│   └── other/
+│       ├── JWTService.java          # RS256 token generation, validation, claim extraction
+│       ├── RedisService.java        # get / set / delete / isCaching helpers
+│       └── KafkaProducer.java       # Generic JSON Kafka publisher
+│
+└── util/
+    ├── KeyLoader.java               # PEM -> RSAPrivateKey / RSAPublicKey loader
+    ├── UserUtils.java               # Unique username generator
+    └── enums/
+        ├── Role.java                # CUSTOMER, ADMIN
+        ├── LoginType.java           # NORMAL (OAuth extension-ready)
+        ├── Gender.java              # User gender enum
+        └── AddressType.java         # Address type enum
+```
+
+---
+
+## 🗄️ Data Model
+
+```mermaid
+erDiagram
+    ACCOUNT {
+        int      AccountID   PK
+        string   UserName    UK
+        string   email       UK
+        string   phone
+        string   passwordHash
+        string   providerID
+        enum     loginType
+        enum     role
+        bool     active
+        bool     banned
+        bool     isDeleted
+        datetime createdAt
+        datetime updatedAt
+        int      UserID      FK
+    }
+    USER {
+        int    userID    PK
+        string firstName
+        string lastName
+        enum   gender
+        date   dateOfBirth
+    }
+    ADDRESS {
+        int    addressID  PK
+        string street
+        string city
+        string country
+        enum   addressType
+        int    userID     FK
+    }
+
+    ACCOUNT ||--|| USER : "has profile"
+    USER    ||--o{ ADDRESS : "has addresses"
+```
+
+---
+
+## 🔒 Security Design
+
+### JWT Token Claims
+
+Each signed token carries the following custom claims:
+
+| Claim | Description |
+|:---|:---|
+| `sub` | Username |
+| `userID` | User entity ID |
+| `accountID` | Account entity ID |
+| `role` | `CUSTOMER` or `ADMIN` |
+| `type` | `ACCESS` or `REFRESH` |
+| `jti` | Unique token ID (used for blacklisting) |
+| `iss` | Configured issuer (`JWT_ISS`) |
+| `iat` / `exp` | Issued-at / Expiry timestamps |
+
+### Token Blacklisting
+
+On logout, **both** the access token and the refresh token are blacklisted in Redis:
+
+```
+Key:  BLACKLISTED_TOKEN:<jti>
+TTL:  remaining lifetime of the token (in ms)
+```
+
+`JwtBlacklistValidator` intercepts every incoming JWT before it is granted to Spring Security — blocked tokens return `401 invalid_token`.
+
+### OTP & Password Reset Flow
+
+```
+1. POST /account/send-otp
+   → Generate 6-digit OTP
+   → Cache in Redis: key=OTP:<email>, TTL=5min
+   → Publish {userName, email, otp} to Kafka: auth.send.otp
+
+2. POST /account/confirm-otp
+   → Verify OTP against Redis
+   → Delete OTP key (one-time use)
+   → Create UUID reset token, cache: key=OTP_VERIFIED:<email>, TTL=5min
+   → Return {email, resetToken} to client
+
+3. POST /account/change-password
+   → Verify resetToken against Redis
+   → Encode and save new password
+   → Delete OTP_VERIFIED key (replay attack prevention)
+```
+
+### Security Whitelist
+
+The following paths bypass JWT authentication entirely:
+
+```
+/account/login        /account/register     /account/send-otp
+/account/confirm-otp  /account/change-password  /account/active
+/account/refresh      /v3/api-docs/**       /swagger-ui/**
+/actuator/**
+```
 
 ---
 
@@ -75,162 +264,163 @@ graph TD
 
 ### Prerequisites
 
-Before running the service, ensure you have:
-- **JDK 17** installed.
-- **Maven 3.8+** installed.
-- **MySQL 8.0+** running (default configuration expects port `3306` or `3307`).
-- **Redis 6.x+** running on standard port `6379`.
-- **Apache Kafka** running (required for publishing activation and OTP events).
+- **JDK 17**
+- **Maven 3.8+** (or use `./mvnw`)
+- **MySQL 8.0+** running on port `3306` or `3307`
+- **Redis 6.x+** on port `6379`
+- **Apache Kafka** on port `9092`
 
-### Quick Setup & Initialization
+### 1. Clone the repository
 
-1. **Clone & Navigate**:
-   ```bash
-   git clone <repository-url>
-   cd AuthService
-   ```
-
-2. **Generate RSA Key Pair**:
-   Asymmetric signing requires an RSA key pair. Run the following commands in the project's root directory to generate them in the correct formats:
-   ```bash
-   # 1. Generate a 2048-bit RSA private key
-   openssl genrsa -out private_key.pem 2048
-   
-   # 2. Convert the private key to PKCS#8 format (strictly required by Java)
-   openssl pkcs8 -topk8 -inform PEM -in private_key.pem -out private_key_pkcs8.pem -nocrypt
-   
-   # 3. Extract the corresponding public key
-   openssl rsa -in private_key.pem -pubout -out public.pem
-   ```
-   > [!IMPORTANT]
-   > Keep `private_key_pkcs8.pem` and `public.pem` in the root directory or configure their absolute paths in your `.env` file. Never commit private keys to production source control!
-
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory of `AuthService`:
-   ```env
-   # =========================================================================
-   # FURNIRO AUTH SERVICE - SYSTEM CONFIGURATION
-   # =========================================================================
-   
-   # Application Server Configuration
-   SERVER_PORT=8080
-   SERVER_PATH=/api/v1/furniro
-
-   # Database Configuration
-   DATABASE_URL=jdbc:mysql://localhost:3307/furniro_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-   DATABASE_USERNAME=root
-   DATABASE_PASSWORD=your_secure_db_password
-
-   # Redis Cache Settings
-   SPRING_REDIS_HOST=localhost
-   SPRING_REDIS_PORT=6379
-
-   # Kafka Settings
-   SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-
-   # JWT Asymmetric Key Settings
-   JWT_ISS=furniro-auth-service
-   JWT_PRIVATE=./private_key_pkcs8.pem
-   JWT_PUBLIC=./public.pem
-   JWT_ALGORITHM=RS256
-
-   # Token Lifespans (in milliseconds)
-   JWT_ACCESS_EXPIRATION=3600000        # 1 Hour
-   JWT_REFRESH_EXPIRATION=604800000     # 7 Days
-   ```
-
-4. **Compile & Run**:
-   ```bash
-   # Build the fat JAR
-   ./mvnw clean package -DskipTests
-   
-   # Boot the Spring Boot application
-   ./mvnw spring-boot:run
-   ```
-   The service will boot up and be accessible on: `http://localhost:8080/api/v1/furniro`
-
----
-
-## 🛣️ API Directory & Endpoint Roadmap
-
-### 🔓 Public / Anonymous Endpoints
-These endpoints are white-listed and do not require any Authorization header.
-
-| Endpoint | Method | Payload / Parameters | Description |
-| :--- | :---: | :--- | :--- |
-| `/account/register` | `POST` | `RegisterReq` (JSON) | Create a new customer profile and account (starts inactive) |
-| `/account/active` | `GET` | `?id={accountID}` | Activate an account (e.g., via activation email link) |
-| `/account/login` | `POST` | `LoginReq` (JSON) | Authenticate credentials and return Access & Refresh tokens |
-| `/account/send-otp` | `POST` | `{"email": "user@example.com"}` | Generate 6-digit OTP, cache in Redis, publish to Kafka |
-| `/account/confirm-otp` | `POST` | `ConfirmOTPReq` (JSON) | Verify the OTP stored in Redis and invalidate upon match |
-| `/account/change-password` | `POST` | `ChangePasswordReq` (JSON) | Reset password following successful OTP verification |
-
-### 🔒 Secured Endpoints
-These endpoints require a valid `Bearer Access Token` inside the `Authorization` header.
-
-| Endpoint | Method | Required Role | Description |
-| :--- | :---: | :---: | :--- |
-| `/account/logout` | `POST` | `Any Authenticated` | Terminate session and invalidate current tokens |
-| `/account/refresh` | `POST` | `Any Authenticated` | Exchange a valid Refresh Token for a brand new Access Token |
-| `/user/{id}` | `GET` | `CUSTOMER` / `ADMIN` | Fetch detailed personal information of a specific user |
-| `/user/update` | `PUT` | `CUSTOMER` | Update first name, last name, gender, or date of birth |
-| `/address/user/{userId}` | `GET` | `CUSTOMER` | Retrieve all shipping and billing addresses for a user |
-| `/address/update` | `PUT` | `CUSTOMER` | Insert or modify a specific address entry |
-
-### 🛠️ Admin Operations
-These operations are strictly guarded and require the caller to possess the `ADMIN` role.
-
-| Endpoint | Method | Payload / Parameters | Description |
-| :--- | :---: | :--- | :--- |
-| `/admin/add-account` | `POST` | `AddAccountReq` (JSON) | Direct creation of accounts by administrative staff |
-| `/admin/all-account` | `GET` | `?page=0&size=20&sortBy=createdAt` | Paginated listing of all registered system accounts |
-| `/admin/total` | `GET` | *None* | Retrieve total count of accounts registered in the database |
-| `/admin/reset-password`| `POST` | `List<Integer>` (Account IDs) | Force-reset passwords for a list of accounts |
-| `/admin/ban-account` | `POST` | `List<Integer>` (Account IDs) | Suspend account capabilities immediately |
-| `/admin/unban-account` | `POST` | `List<Integer>` (AccountIDs) | Re-activate previously suspended accounts |
-| `/admin/delete-account`| `POST` | `List<Integer>` (Account IDs) | Soft-delete accounts from active directories |
-
-> [!TIP]
-> To test these endpoints interactively, visit the **Swagger UI** page in your browser while the service is running:
-> **[http://localhost:8080/api/v1/furniro/swagger-ui/index.html](http://localhost:8080/api/v1/furniro/swagger-ui/index.html)**
-
----
-
-## 🛠️ Project Package Architecture
-
-```text
-src/main/java/com/furniro/AuthService/
-├── config/       # Spring Security, OAuth2, Kafka, and Swagger Bean Definitions
-├── controller/   # REST Controllers (Account, User, Address, Admin)
-├── database/
-│   ├── entity/      # JPA Hibernate Entities (Account, User, Address)
-│   └── repository/  # Spring Data JPA Interfaces for MySQL operations
-├── dto/             # Data Transfer Objects (Request/Response contracts)
-├── exception/       # Global custom exceptions and ControllerAdvice handlers
-├── mapper/          # MapStruct Interfaces mapping entities to DTOs
-├── service/
-│   ├── other/       # Helper Services (JWT, KafkaProducer, RedisService)
-│   └── *Service     # Core Business Logics (Account, Admin, User, Address)
-└── util/            # Utilities, static helpers, and core Enums
+```bash
+git clone <repository-url>
+cd AuthService
 ```
 
+### 2. Generate RSA Key Pair
+
+```bash
+# Generate 2048-bit RSA private key
+openssl genrsa -out private_key.pem 2048
+
+# Convert to PKCS#8 format (required by Java)
+openssl pkcs8 -topk8 -inform PEM -in private_key.pem -out private_key_pkcs8.pem -nocrypt
+
+# Extract public key
+openssl rsa -in private_key.pem -pubout -out public.pem
+```
+
+> [!IMPORTANT]
+> Never commit `private_key_pkcs8.pem` to source control. Add it to `.gitignore`.
+
+### 3. Configure Environment
+
+Create a `.env` file in the project root:
+
+```env
+# ─── Server ─────────────────────────────────────────────────────────────────
+SERVER_PORT=8081
+
+# ─── Database ────────────────────────────────────────────────────────────────
+DATABASE_URL=jdbc:mysql://localhost:3307/furniro_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+DATABASE_USERNAME=root
+DATABASE_PASSWORD=your_secure_password
+
+# ─── Redis ───────────────────────────────────────────────────────────────────
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# ─── Kafka ───────────────────────────────────────────────────────────────────
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_CONSUMER_GROUP_ID=auth-service-group
+
+# ─── JWT ─────────────────────────────────────────────────────────────────────
+JWT_ISS=furniro-auth-service
+JWT_PRIVATE=./private_key_pkcs8.pem
+JWT_PUBLIC=./public.pem
+JWT_ALGORITHM=RS256
+
+# Access token: 1 hour (ms) | Refresh token: 7 days (ms)
+JWT_ACCESS_EXPIRATION=3600000
+JWT_REFRESH_EXPIRATION=604800000
+```
+
+### 4. Build & Run
+
+```bash
+# Run with hot-reload (devtools)
+./mvnw spring-boot:run
+
+# Or build and run the JAR
+./mvnw clean package -DskipTests
+java -jar target/AuthService-0.0.1-SNAPSHOT.jar
+```
+
+- **API Base:** `http://localhost:8081`
+- **Swagger UI:** `http://localhost:8081/swagger-ui/index.html`
+- **Actuator Health:** `http://localhost:8081/actuator/health`
+
 ---
 
-## 🚀 Key Improvements & Upgrades Roadmap
+## 🌐 API Reference
 
-Below is a planned roadmap of structural upgrades to transition this authentication service from a standard local development state to an **enterprise-ready, production-hardened platform**:
+> The API Gateway routes requests under `/api/v1/furniro/auth-service/`. Direct access uses no prefix.
 
-### 1. Security & Logic Enhancements
-*   **OTP Security Fix**: Currently, `/account/change-password` contains a logic vulnerability where password resetting is permitted if the OTP key *does not* exist in Redis. The logic must be reversed to ensure a valid verification state is created in Redis upon successful OTP confirmation, which is then strictly verified and deleted during password resetting.
-*   **True Token Blacklisting on Logout**: Introduce a JWT blacklist registry in Redis. When `/account/logout` is hit, parse the token's remaining TTL, and save the token ID (`jti`) in Redis with that TTL as a blacklisted item. Update the resource server's JWT filter chain to block blacklisted tokens.
-*   **Refresh Token Rotation (RTR)**: Invalidate the old Refresh Token upon usage and issue a brand-new Refresh Token alongside the Access Token. This protects users against replay attacks.
+### 🔓 Public Endpoints — No Auth Required
 
-### 2. Architecture & Reliability Upgrades
-*   **Transactional Outbox Pattern**: Currently, Kafka events are fired immediately inside the transaction lifecycle (`afterCommit`). If the Kafka broker is down, the user's registration succeeded but downstream microservices (e.g. notifications/orders) are left out-of-sync. Saving events to an `Outbox` database table within the same database transaction and polling/streaming them guarantees **at-least-once delivery**.
-*   **Rate Limiting**: Protect authentication endpoints (especially `/account/login` and `/account/send-otp`) from brute force and denial-of-service (DoS) attacks using **Spring Cloud Gateway RateLimiter** or **Bucket4j**.
+| Method | Endpoint | Body / Params | Description |
+|:---:|:---|:---|:---|
+| `POST` | `/account/register` | `RegisterReq` | Create account + user profile; fires activation event to Kafka |
+| `GET` | `/account/active` | `?id={accountID}` | Activate account via link (e.g. from email) |
+| `POST` | `/account/login` | `LoginReq` | Authenticate; returns access + refresh tokens |
+| `POST` | `/account/send-otp` | `{ "email": "..." }` | Generate OTP → cache in Redis (5m) → publish to Kafka |
+| `POST` | `/account/confirm-otp` | `ConfirmOTPReq` | Verify OTP; returns short-lived `resetToken` |
+| `POST` | `/account/change-password` | `ChangePasswordReq` | Reset password using `resetToken` |
+
+### 🔒 Authenticated Endpoints — Bearer Token Required
+
+| Method | Endpoint | Role | Description |
+|:---:|:---|:---:|:---|
+| `POST` | `/account/logout` | Any | Blacklist both access & refresh tokens in Redis |
+| `POST` | `/account/refresh` | Any | Exchange refresh token for a new access token |
+| `GET` | `/user/{id}` | `CUSTOMER` / `ADMIN` | Get user profile by ID |
+| `GET` | `/user/all` | `ADMIN` | List all user profiles |
+| `PUT` | `/user/update` | `CUSTOMER` / `ADMIN` | Update user profile (name, gender, DOB) |
+| `GET` | `/address/user/{userId}` | `CUSTOMER` | Get all addresses for a user |
+| `PUT` | `/address/update` | `CUSTOMER` | Create or update an address |
+
+### 🛠️ Admin Endpoints — `ADMIN` Role Required
+
+| Method | Endpoint | Body | Description |
+|:---:|:---|:---|:---|
+| `POST` | `/admin/add-accounts` | `List<AddAccountReq>` | Bulk-create accounts |
+| `GET` | `/admin/all-account` | `?page&size&sortBy` | Paginated account listing |
+| `POST` | `/admin/reset-password` | `List<Integer>` (IDs) | Force-reset passwords |
+| `POST` | `/admin/ban-account` | `List<Integer>` (IDs) | Suspend accounts |
+| `POST` | `/admin/unban-account` | `List<Integer>` (IDs) | Re-activate accounts |
+| `POST` | `/admin/delete-account` | `List<Integer>` (IDs) | Soft-delete accounts |
+
+> [!TIP]
+> Test all endpoints interactively at **`http://localhost:8081/swagger-ui/index.html`**
+
+---
+
+## 🐳 Docker
+
+The project ships with a **3-stage layered Dockerfile** for minimal image size:
+
+| Stage | Base Image | Purpose |
+|:---|:---|:---|
+| `builder` | `maven:3.9.9-eclipse-temurin-17` | Compile & package the fat JAR |
+| `extractor` | `alpine:3.19` + OpenJDK 17 JRE | Extract Spring Boot layers |
+| `runtime` | `alpine:3.19` + OpenJDK 17 JRE | Serve only the application layers |
+
+```bash
+# Build the image
+docker build -t furniro-auth-service .
+
+# Run the container (pass env vars)
+docker run -p 8081:8081 --env-file .env furniro-auth-service
+```
+
+The container exposes port **`8081`** and starts with Spring Boot's `JarLauncher` for optimized layered-JAR startup.
+
+---
+
+## 🗺️ Roadmap
+
+### Security Hardening
+
+- [ ] **Refresh Token Rotation (RTR)** — Invalidate old refresh token on use; issue a new one to prevent replay attacks
+- [ ] **Rate Limiting** — Protect `/account/login` and `/account/send-otp` against brute-force (Bucket4j / Spring Cloud Gateway)
+
+### Architecture
+
+- [ ] **Transactional Outbox Pattern** — Replace `afterCommit` Kafka publishing with an outbox table for guaranteed at-least-once delivery
+- [ ] **OAuth2 Social Login** — Leverage the existing `LoginType` enum and `providerID` field in `Account` for Google/GitHub login
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.

@@ -78,7 +78,7 @@ public class AccountService {
                 .email(registerReq.getEmail())
                 .phone(registerReq.getNumberPhone())
                 .passwordHash(encodedPassword)
-                .active(true)
+                .active(false)
                 .user(user)
                 .build();
 
